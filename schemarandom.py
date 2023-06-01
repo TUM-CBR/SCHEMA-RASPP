@@ -62,8 +62,8 @@ def parse_arguments(args):
 	return arg_dict
 
 def print_usage(args):
-	print 'Usage: python', args[0].split(os.path.sep)[-1], " [options]"
-	print "Options:\n", \
+	print ('Usage: python', args[0].split(os.path.sep)[-1], " [options]")
+	print ("Options:\n", \
 		'\t-%s <alignment file>\n' % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE, \
 		"\t-%s <contact file>\n" % ARG_CONTACT_FILE, \
 		'\t-%s <# crossovers>\n' % ARG_NUM_CROSSOVERS, \
@@ -71,7 +71,7 @@ def print_usage(args):
 		'\t[-%s <random number seed>]\n' % ARG_RANDOM_SEED, \
 		'\t[-%s <max. chimeras generated per library>]\n' % ARG_MAX_CHIMERAS_PER_LIBRARY, \
 		'\t[-%s <min. fragment length>]\n' % ARG_MIN_FRAGMENT_SIZE, \
-		'\t[-%s <output file>]' % ARG_OUTPUT_FILE
+		'\t[-%s <output file>]' % ARG_OUTPUT_FILE)
 
 
 def confirm_arguments(arg_dict):

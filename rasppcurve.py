@@ -48,150 +48,152 @@ ARG_COMPARE = 'compare'  # Unused
 ARG_HELP = 'help'
 
 def parse_arguments(args):
-	# Turn linear arguments into a dictionary of (option, [values,...]) pairs
-	arg_dict = {}
-	key = None
-	for arg in args[1:]:
-		if arg[0] == '-':
-			key = arg[1:]
-		else:
-			if arg_dict.has_key(key):
-				if arg_dict[key] is list:
-					arg_dict[key] = arg_dict[key]+[arg]
-				else:
-					arg_dict[key] = [arg_dict[key],arg]
-			else:
-				arg_dict[key] = arg
-	return arg_dict
+        # Turn linear arguments into a dictionary of (option, [values,...]) pairs
+        arg_dict = {}
+        key = None
+        for arg in args[1:]:
+                if arg[0] == '-':
+                        key = arg[1:]
+                else:
+                        if key in arg_dict:
+                                if arg_dict[key] is list:
+                                        arg_dict[key] = arg_dict[key]+[arg]
+                                else:
+                                        arg_dict[key] = [arg_dict[key],arg]
+                        else:
+                                arg_dict[key] = arg
+        return arg_dict
 
 def print_usage(args):
-	print 'Usage: python', args[0].split(os.path.sep)[-1], " [options]"
-	print "Options:\n", \
-		'\t-%s <alignment file>\n' % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE, \
-		"\t-%s <contact file>\n" % ARG_CONTACT_FILE, \
-		'\t-%s <# crossovers>\n' % ARG_NUM_CROSSOVERS, \
-		'\t[-%s <# libraries to generate>]\n' % ARG_NUM_LIBRARIES, \
-		'\t[-%s <random number seed>]\n' % ARG_RANDOM_SEED, \
-		'\t[-%s <max. chimeras generated per library>]\n' % ARG_MAX_CHIMERAS_PER_LIBRARY, \
-		'\t[-%s <min. fragment length>]\n' % ARG_MIN_FRAGMENT_SIZE, \
-		'\t[-%s <bin width>]\n' % ARG_BIN_WIDTH, \
-		'\t[-%s <output file>]' % ARG_OUTPUT_FILE
+        print('Usage: python', args[0].split(os.path.sep)[-1], " [options]")
+        print("Options:\n", \
+                '\t-%s <alignment file>\n' % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE, \
+                "\t-%s <contact file>\n" % ARG_CONTACT_FILE, \
+                '\t-%s <# crossovers>\n' % ARG_NUM_CROSSOVERS, \
+                '\t[-%s <# libraries to generate>]\n' % ARG_NUM_LIBRARIES, \
+                '\t[-%s <random number seed>]\n' % ARG_RANDOM_SEED, \
+                '\t[-%s <max. chimeras generated per library>]\n' % ARG_MAX_CHIMERAS_PER_LIBRARY, \
+                '\t[-%s <min. fragment length>]\n' % ARG_MIN_FRAGMENT_SIZE, \
+                '\t[-%s <bin width>]\n' % ARG_BIN_WIDTH, \
+                '\t[-%s <output file>]' % ARG_OUTPUT_FILE)
 
 
 def confirm_arguments(arg_dict):
-	# Are arguments okay?
-	res = True
-	arg_keys = arg_dict.keys()
-	try:
-		if len(arg_keys) == 0:
-			res = False
-			return
-			
-		if not ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE in arg_keys:
-			print "  You must provide a library file (-%s <alignment file>)" % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE
-			res = False
-		elif not os.path.isfile(arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]):
-			print "  Can't find library file %s" % arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]
-			res = False
-			
-		if not ARG_CONTACT_FILE in arg_keys:
-			print "  You must provide a contact file (-%s <contact file>)" % ARG_CONTACT_FILE
-			res = False
-		elif not os.path.isfile(arg_dict[ARG_CONTACT_FILE]):
-			print "  Can't find contact file %s" % arg_dict[ARG_CONTACT_FILE]
-			res = False
-			
-		if not ARG_NUM_CROSSOVERS in arg_keys:
-			print "  You must specify the number of crossovers (-%s <number of crossovers>)" % ARG_NUM_CROSSOVERS
-			res = False
-	except Exception, e:
-		#print e
-		res = False
-	return res
+        # Are arguments okay?
+        res = True
+        arg_keys = arg_dict.keys()
+        try:
+                if len(arg_keys) == 0:
+                        res = False
+                        return
+                        
+                if not ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE in arg_keys:
+                        print("  You must provide a library file (-%s <alignment file>)" % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE)
+                        res = False
+                elif not os.path.isfile(arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]):
+                        print("  Can't find library file %s" % arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE])
+                        res = False
+                        
+                if not ARG_CONTACT_FILE in arg_keys:
+                        print("  You must provide a contact file (-%s <contact file>)" % ARG_CONTACT_FILE)
+                        res = False
+                elif not os.path.isfile(arg_dict[ARG_CONTACT_FILE]):
+                        print("  Can't find contact file %s" % arg_dict[ARG_CONTACT_FILE])
+                        res = False
+                        
+                if not ARG_NUM_CROSSOVERS in arg_keys:
+                        print("  You must specify the number of crossovers (-%s <number of crossovers>)" % ARG_NUM_CROSSOVERS)
+                        res = False
+        except Exception as e:
+                #print e
+                res = False
+        return res
 
 def main(args):
-	arg_dict = parse_arguments(args)
-	if not confirm_arguments(arg_dict):
-		if args[0].split(os.path.sep)[-1] == "rasppcurve.py":
-			print_usage(args)
-		return
+        arg_dict = parse_arguments(args)
+        if not confirm_arguments(arg_dict):
+                if args[0].split(os.path.sep)[-1] == "rasppcurve.py":
+                        print_usage(args)
+                return
 
-	# Flags and values
-	print_E = False
-	print_m = False
-	
-	# Inputs:
-	#   The alignment/fragment file name.
-	msa_file = arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]
+        # Flags and values
+        print_E = False
+        print_m = False
+        
+        # Inputs:
+        #   The alignment/fragment file name.
+        msa_file = arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]
 
-	# Read the alignment file to create a list of parents.
-	# The parents will appear in the list in the order in which they appear in the file.
-	parent_list = schema.readMultipleSequenceAlignmentFile(file(msa_file, 'r'))
-	parents = [p for (k,p) in parent_list]
-	
-	# Get the contacts
-	pdb_contacts = schema.readContactFile(file(arg_dict[ARG_CONTACT_FILE], 'r'))
-	
-	# Establish connection to output, either file or, if no output file is 
-	# specified, to standard output.
-	if arg_dict.has_key(ARG_OUTPUT_FILE):
-		output_file = file(arg_dict[ARG_OUTPUT_FILE], 'w')
-	else:
-		output_file = sys.stdout
+        # Read the alignment file to create a list of parents.
+        # The parents will appear in the list in the order in which they appear in the file.
+        with open(msa_file, 'r') as res:
+                parent_list = schema.readMultipleSequenceAlignmentFile(res)
+        parents = [p for (k,p) in parent_list]
+        
+        # Get the contacts
+        with open(arg_dict[ARG_CONTACT_FILE], 'r') as res:
+                pdb_contacts = schema.readContactFile(res)
+        
+        # Establish connection to output, either file or, if no output file is 
+        # specified, to standard output.
+        if ARG_OUTPUT_FILE in arg_dict:
+                output_file = open(arg_dict[ARG_OUTPUT_FILE], 'w')
+        else:
+                output_file = sys.stdout
 
-	# Get the minimum fragment size.
-	if arg_dict.has_key(ARG_MIN_FRAGMENT_SIZE):
-		min_length = int(arg_dict[ARG_MIN_FRAGMENT_SIZE])
-	else:
-		output_file.write("# No minimum fragment length specified; using L=4.\n")
-		min_length = 4
+        # Get the minimum fragment size.
+        if ARG_MIN_FRAGMENT_SIZE in arg_dict:
+                min_length = int(arg_dict[ARG_MIN_FRAGMENT_SIZE])
+        else:
+                output_file.write("# No minimum fragment length specified; using L=4.\n")
+                min_length = 4
 
-	# Get the bin width
-	if arg_dict.has_key(ARG_BIN_WIDTH):
-		bin_width = float(arg_dict[ARG_BIN_WIDTH])
-	else:
-		output_file.write("# No bin width specified; using bin width=1.0.\n")
-		bin_width = 1.0
+        # Get the bin width
+        if ARG_BIN_WIDTH in arg_dict:
+                bin_width = float(arg_dict[ARG_BIN_WIDTH])
+        else:
+                output_file.write("# No bin width specified; using bin width=1.0.\n")
+                bin_width = 1.0
 
-	# Get the number of fragments -- one more than the number of crossovers.
-	num_fragments = int(arg_dict[ARG_NUM_CROSSOVERS])+1
-	
-	
-	num_parents = len(parents)
-	library_size = num_parents**num_fragments
+        # Get the number of fragments -- one more than the number of crossovers.
+        num_fragments = int(arg_dict[ARG_NUM_CROSSOVERS])+1
+        
+        
+        num_parents = len(parents)
+        library_size = num_parents**num_fragments
 
-	# Make libraries consistent with RASPP
-	(new_parents, identical_sites) = raspp.collapse_parents(parents)
-	if len(new_parents[0]) < num_fragments*min_length:
-		error_msg = "Minimum fragment length of %d is too large.\n%d " + \
-					"fragments with length %d cannot be found in a " + \
-					"sequence of length %d (with identities removed).  Aborting..."
-		print error_msg % (min_length, num_fragments, min_length, len(parents[0]))
-		return
+        # Make libraries consistent with RASPP
+        (new_parents, identical_sites) = raspp.collapse_parents(parents)
+        if len(new_parents[0]) < num_fragments*min_length:
+                error_msg = "Minimum fragment length of %d is too large.\n%d " + \
+                                        "fragments with length %d cannot be found in a " + \
+                                        "sequence of length %d (with identities removed).  Aborting..."
+                print(error_msg % (min_length, num_fragments, min_length, len(parents[0])))
+                return
 
-	contacts = schema.getSCHEMAContacts(pdb_contacts, parents)
-	energies = raspp.make_4d_energies(contacts, parents)
-	avg_energies = raspp.calc_average_energies(energies, parents)
+        contacts = schema.getSCHEMAContacts(pdb_contacts, parents)
+        energies = raspp.make_4d_energies(contacts, parents)
+        avg_energies = raspp.calc_average_energies(energies, parents)
 
-	tstart = time.clock()
-	res = raspp.RASPP(avg_energies, parents, num_fragments-1, min_length)
-	output_file.write("# RASPP took %1.2f secs\n" % (time.clock()-tstart,))
-	output_file.write("# RASPP found %d results\n" % (len(res),))
+        tstart = time.time()
+        res = raspp.RASPP(avg_energies, parents, num_fragments-1, min_length)
+        output_file.write("# RASPP took %1.2f secs\n" % (time.time()-tstart,))
+        output_file.write("# RASPP found %d results\n" % (len(res),))
 
-	tstart = time.clock()
-	curve = raspp.curve(res, parents, bin_width)
-	output_file.write("# RASPP found %d unique (<E>,<m>) points\n" % (len(curve),))
-	output_file.write("# RASPP curve took %1.2f secs\n" % (time.clock()-tstart,))
-	output_file.write("# <E>\t<m>\tcrossover points\n")
-	for (average_E, average_m, crossovers) in curve:
-		xover_pat = '%d '*len(crossovers)
-		xover_str = xover_pat % tuple(crossovers)
-		output_file.write('%1.4f\t%1.4f\t%s\n' % (average_E, average_m, xover_str))
+        tstart = time.time()
+        curve = raspp.curve(res, parents, bin_width)
+        output_file.write("# RASPP found %d unique (<E>,<m>) points\n" % (len(curve),))
+        output_file.write("# RASPP curve took %1.2f secs\n" % (time.time()-tstart,))
+        output_file.write("# <E>\t<m>\tcrossover points\n")
+        for (average_E, average_m, crossovers) in curve:
+                xover_pat = '%d '*len(crossovers)
+                xover_str = xover_pat % tuple(crossovers)
+                output_file.write('%1.4f\t%1.4f\t%s\n' % (average_E, average_m, xover_str))
 
-	if arg_dict.has_key(ARG_OUTPUT_FILE):
-		output_file.close()
+        if ARG_OUTPUT_FILE in arg_dict:
+                output_file.close()
 
 def main_wrapper():
-	main(sys.argv)
+        main(sys.argv)
 
 main_wrapper()

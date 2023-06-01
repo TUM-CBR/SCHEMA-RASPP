@@ -285,14 +285,14 @@ def RASPP(avg_energies, parents, num_crossovers, min_fragment_diversity):
 			  (num_crossovers, min_fragment_diversity) + \
 			  "is impossible given parent non-identical sequence length of %d." % \
 			  (len(collapsed_parents[0]),)
-		raise ValueError, err_string
+		raise ValueError(err_string)
 	
 
 	results = []
 	# Compute the arc lengths.	
-	tstart = time.clock()
+	tstart = time.time()
 	arc_lengths = calc_arc_lengths(avg_energies, parents)
-	ttot = time.clock()-tstart
+	ttot = time.time()-tstart
 	#print "# Arc lengths calculated in %1.2f sec" % ttot
 	num_residues = len(collapsed_parents[0])
 	
@@ -354,9 +354,9 @@ def get_shortest_path(arc_lengths, parents, num_crossovers, l_min, l_max):
 	# The paths 
 	for k in range(1, num_crossovers):
 		if debug:
-			print "k=%d" % k
+			print("k=%d" % k)
 			for p in paths:
-				print "%s\t%1.2f" % (p.frag_lengths(parents[0]), p.length)
+				print("%s\t%1.2f" % (p.frag_lengths(parents[0]), p.length))
 		# The only allowable range for node j is where previous
 		# fragments satisfy the length constraints.  There have
 		# been k of them so far, so j >= k*l_min.
@@ -392,9 +392,9 @@ def get_shortest_path(arc_lengths, parents, num_crossovers, l_min, l_max):
 		paths = shortest_paths
 
 	if debug:
-		print "final"
+		print("final")
 		for p in paths:
-			print "%s\t%1.2f" % (p.frag_lengths(parents[0]), p.length)
+			print("%s\t%1.2f" % (p.frag_lengths(parents[0]), p.length))
 		#for i in range(len(paths)):
 		#	print "      %d\t%s\t%1.2f" % (i, paths[i].frag_lengths(parents[0]), paths[i].length)
 

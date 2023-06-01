@@ -56,7 +56,7 @@ def parse_arguments(args):
 			key = arg[1:]
 			arg_dict[key] = None
 		else:
-			if arg_dict.has_key(key):
+			if key in arg_dict:
 				if arg_dict[key]:
 					if type(arg_dict[key]) is list:
 						arg_dict[key] = arg_dict[key]+[arg]
@@ -69,15 +69,15 @@ def parse_arguments(args):
 	return arg_dict
 
 def print_usage(args):
-	print 'Usage: python', args[0].split(os.path.sep)[-1], ' [options]'
-	print 'Options:\n', \
+	print('Usage: python', args[0].split(os.path.sep)[-1], ' [options]')
+	print('Options:\n', \
 		'\t-%s <alignment file>\n' % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE, \
 		'\t-%s <contact file>\n' % ARG_CONTACT_FILE, \
 		'\t-%s <crossover file>\n' % ARG_CROSSOVER_FILE, \
 		'\t[-%s <chimera list>]\n' % ARG_CHIMERAS, \
 		'\t[-%s]\n' % ARG_PRINT_E, \
 		'\t[-%s]\n' % ARG_PRINT_M, \
-		'\t[-%s <output file>]' % ARG_OUTPUT_FILE
+		'\t[-%s <output file>]' % ARG_OUTPUT_FILE)
 
 def confirm_arguments(arg_dict):
 	# Are arguments okay?
@@ -89,30 +89,30 @@ def confirm_arguments(arg_dict):
 			return
 			
 		if not ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE in arg_keys:
-			print "  You must provide a library file (-%s <file>)" % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE
+			print("  You must provide a library file (-%s <file>)" % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE)
 			res = False
 		elif not os.path.isfile(arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]):
-			print "  Can't find library file %s" % arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]
+			print("  Can't find library file %s" % arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE])
 			res = False
 			
 		if not ARG_CROSSOVER_FILE in arg_keys:
-			print "  You must provide a crossover file (-%s <file>)" % ARG_CROSSOVER_FILE
+			print("  You must provide a crossover file (-%s <file>)" % ARG_CROSSOVER_FILE)
 			res = False
 		elif not os.path.isfile(arg_dict[ARG_CROSSOVER_FILE]):
-			print "  Can't find crossover file %s" % arg_dict[ARG_CROSSOVER_FILE]
+			print("  Can't find crossover file %s" % arg_dict[ARG_CROSSOVER_FILE])
 			res = False
 			
 		if not ARG_CONTACT_FILE in arg_keys:
-			print "  You must provide a contact file (-%s <file>)" % ARG_CONTACT_FILE
+			print("  You must provide a contact file (-%s <file>)" % ARG_CONTACT_FILE)
 			res = False
 		elif not os.path.isfile(arg_dict[ARG_CONTACT_FILE]):
-			print "  Can't find contact file %s" % arg_dict[ARG_CONTACT_FILE]
+			print("  Can't find contact file %s" % arg_dict[ARG_CONTACT_FILE])
 			res = False
 			
-		if not (arg_dict.has_key(ARG_PRINT_E) or arg_dict.has_key(ARG_PRINT_M)):
-			print "  No output specified; use -E to print disruption and/or -m to print mutation"
+		if not (ARG_PRINT_E in arg_dict or ARG_PRINT_M in arg_dict):
+			print("  No output specified; use -E to print disruption and/or -m to print mutation")
 			res = False
-	except Exception, e:
+	except Exception as e:
 		raise e
 		res = False
 	return res

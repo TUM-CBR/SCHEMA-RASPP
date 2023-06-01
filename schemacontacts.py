@@ -42,192 +42,195 @@ ARG_HELP = 'help'
 ARG_CHAINS = 'chains'
 
 def parse_arguments(args):
-	# Turn linear arguments into a dictionary of (option, [values,...]) pairs
-	arg_dict = {}
-	key = None
-	for arg in args[1:]:
-		if arg[0] == '-':
-			key = arg[1:]
-			arg_dict[key] = None
-		else:
-			if arg_dict.has_key(key):
-				if arg_dict[key]:
-					if type(arg_dict[key]) is list:
-						arg_dict[key] = arg_dict[key]+[arg]
-					else:
-						arg_dict[key] = [arg_dict[key],arg]
-				else:
-					arg_dict[key] = arg
-			else:
-				arg_dict[key] = arg
-	return arg_dict
+        # Turn linear arguments into a dictionary of (option, [values,...]) pairs
+        arg_dict = {}
+        key = None
+        for arg in args[1:]:
+                if arg[0] == '-':
+                        key = arg[1:]
+                        arg_dict[key] = None
+                else:
+                        if key in arg_dict:
+                                if arg_dict[key]:
+                                        if type(arg_dict[key]) is list:
+                                                arg_dict[key] = arg_dict[key]+[arg]
+                                        else:
+                                                arg_dict[key] = [arg_dict[key],arg]
+                                else:
+                                        arg_dict[key] = arg
+                        else:
+                                arg_dict[key] = arg
+        return arg_dict
 
 def print_usage(args):
-	print 'Usage: python', args[0].split(os.path.sep)[-1], " [options]"
-	print 'Options:\n',\
-		"\t-%s <PDB file>\n" % ARG_PDB_FILE, \
-		"\t-%s <multiple sequence alignment file>\n" % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE, \
-		"\t[-%s <PDB-parent alignment file>]\n" % ARG_PDB_ALIGNMENT_FILE,\
-		"\t[-%s <PDB chains list>]\n" % ARG_CHAINS,\
-		"\t[-%s <contacts output file>]" % ARG_OUTPUT_FILE
+        print('Usage: python', args[0].split(os.path.sep)[-1], " [options]")
+        print('Options:\n',\
+                "\t-%s <PDB file>\n" % ARG_PDB_FILE, \
+                "\t-%s <multiple sequence alignment file>\n" % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE, \
+                "\t[-%s <PDB-parent alignment file>]\n" % ARG_PDB_ALIGNMENT_FILE,\
+                "\t[-%s <PDB chains list>]\n" % ARG_CHAINS,\
+                "\t[-%s <contacts output file>]" % ARG_OUTPUT_FILE)
 
 def confirm_arguments(arg_dict):
-	# Are arguments okay?
-	res = True
-	arg_keys = arg_dict.keys()
+        # Are arguments okay?
+        res = True
+        arg_keys = arg_dict.keys()
 
-	try:
-		if len(arg_keys) == 0:
-			res = False
-			return
-			
-		if not ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE in arg_keys:
-			print "  You must provide an alignment file (-%s <file>)" % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE
-			res = False
-		elif not os.path.isfile(arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]):
-			print "  Can't find library file %s" % arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]
-			res = False
-			
-		if not ARG_PDB_FILE in arg_keys:
-			print "  You must provide a PDB file (-%s <file>)" % ARG_PDB_FILE
-			res = False
-		elif not os.path.isfile(arg_dict[ARG_PDB_FILE]):
-			print "  Can't find PDB file %s" % arg_dict[ARG_PDB_FILE]
-			res = False
-		
-	except:
-		res = False
-	return res
+        try:
+                if len(arg_keys) == 0:
+                        res = False
+                        return
+                        
+                if not ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE in arg_keys:
+                        print("  You must provide an alignment file (-%s <file>)" % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE)
+                        res = False
+                elif not os.path.isfile(arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]):
+                        print("  Can't find library file %s" % arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE])
+                        res = False
+                        
+                if not ARG_PDB_FILE in arg_keys:
+                        print("  You must provide a PDB file (-%s <file>)" % ARG_PDB_FILE)
+                        res = False
+                elif not os.path.isfile(arg_dict[ARG_PDB_FILE]):
+                        print("  Can't find PDB file %s" % arg_dict[ARG_PDB_FILE])
+                        res = False
+                
+        except:
+                res = False
+        return res
 
 def main(args):
-	arg_dict = parse_arguments(args)
-	if not confirm_arguments(arg_dict):
-		if args[0].split(os.path.sep)[-1] == "schemacontacts.py":
-			print_usage(args)
-		return
+        arg_dict = parse_arguments(args)
+        if not confirm_arguments(arg_dict):
+                if args[0].split(os.path.sep)[-1] == "schemacontacts.py":
+                        print_usage(args)
+                return
 
-	# Flags and values
-	
-	# Inputs:
-	#	The PDB file name.
-	pdb_file = arg_dict[ARG_PDB_FILE]
-	#   The alignment/fragment file name.
-	msa_file = arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]
-	#	The alignment between the reference parent (indicated by reference_parent_index)
-	#	and the target protein sequence in the provided PDB file.  The amino acids in
-	#	the aligned reference parent should correspond exactly to those in the 
-	#	msa_file above.
-	# If you don't provide a PDB alignment file, the program will assume that the ID of the PDB structure
-	# contained in the HEADER field corresponds to one of the sequence IDs in the MSA.
-	parent_pdb_alignment_file = None
-	if arg_dict.has_key(ARG_PDB_ALIGNMENT_FILE):
-		if not os.path.isfile(arg_dict[ARG_PDB_ALIGNMENT_FILE]):
-			print "  Can't find PDB/parent alignment file %s" % arg_dict[ARG_PDB_ALIGNMENT_FILE]
-			return 
-		else:
-			parent_pdb_alignment_file = arg_dict[ARG_PDB_ALIGNMENT_FILE]
-	else:
-		pdb_key = pdb.File().getIDCode(file(pdb_file,'r'))
-		
-	# The PDB chains
-	# Many PDB files include multiple chains.  The chain_identifier list includes those
-	# chains which correspond to the protein whose contacts are being evaluated.
-	# Most often, chain 'A' (in the case of multiple chains) or chain ' ' (only one chain)
-	# will be the appropriate choice.
-	if arg_dict.has_key(ARG_CHAINS):
-		chains = arg_dict[ARG_CHAINS]
-		if type(chains) is list:
-			chain_identifiers = chains + [' ']
-		else:
-			chain_identifiers = [chains, ' ']
-	else:
-		chain_identifiers = ['A',' ']
-	
-	# Read the alignment file to create a list of parents.
-	# The parents will appear in the list in the order in which they appear in the file.
-	parent_list = schema.readMultipleSequenceAlignmentFile(file(msa_file, 'r'))
-	parent_dict = dict(parent_list)
+        # Flags and values
+        
+        # Inputs:
+        #       The PDB file name.
+        pdb_file = arg_dict[ARG_PDB_FILE]
+        #   The alignment/fragment file name.
+        msa_file = arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]
+        #       The alignment between the reference parent (indicated by reference_parent_index)
+        #       and the target protein sequence in the provided PDB file.  The amino acids in
+        #       the aligned reference parent should correspond exactly to those in the 
+        #       msa_file above.
+        # If you don't provide a PDB alignment file, the program will assume that the ID of the PDB structure
+        # contained in the HEADER field corresponds to one of the sequence IDs in the MSA.
+        parent_pdb_alignment_file = None
+        if ARG_PDB_ALIGNMENT_FILE in arg_dict:
+                if not os.path.isfile(arg_dict[ARG_PDB_ALIGNMENT_FILE]):
+                        print("  Can't find PDB/parent alignment file %s" % arg_dict[ARG_PDB_ALIGNMENT_FILE])
+                        return 
+                else:
+                        parent_pdb_alignment_file = arg_dict[ARG_PDB_ALIGNMENT_FILE]
+        else:
+                pdb_key = pdb.File().getIDCode(file(pdb_file,'r'))
+                
+        # The PDB chains
+        # Many PDB files include multiple chains.  The chain_identifier list includes those
+        # chains which correspond to the protein whose contacts are being evaluated.
+        # Most often, chain 'A' (in the case of multiple chains) or chain ' ' (only one chain)
+        # will be the appropriate choice.
+        if ARG_CHAINS in arg_dict:
+                chains = arg_dict[ARG_CHAINS]
+                if type(chains) is list:
+                        chain_identifiers = chains + [' ']
+                else:
+                        chain_identifiers = [chains, ' ']
+        else:
+                chain_identifiers = ['A',' ']
+        
+        # Read the alignment file to create a list of parents.
+        # The parents will appear in the list in the order in which they appear in the file.
+        with open(msa_file, 'r') as res:
+                parent_list = schema.readMultipleSequenceAlignmentFile(res)
+        parent_dict = dict(parent_list)
 
-	# Generate the contacts
-	# Read in the PDB file to create a list of residues.
-	residues = pdb.File().read(file(pdb_file, 'r'))
-	# Because the PDB file's residue sequence may differ from those of the parents, we
-	# must align the PDB residues to one parent.
-	if not parent_pdb_alignment_file:  # Just get PDB sequence from the multiple sequence alignment
-		try:
-			aligned_pdb = parent_dict[pdb_key]
-			aligned_prot = parent_dict[pdb_key]
-		except KeyError:
-			print "Could not find sequence %s in the multiple sequence alignment file %s.  Aborting..." % (pdb_key, msa_file)
-			return
-	else: # Pull information from the parent/PDB alignment file.
-		# Our objective is to find the sequence with the same key in both the parent MSA file and 
-		# the parent/PDB alignment file.
-		pdb_parent_seq_list = schema.readMultipleSequenceAlignmentFile(file(parent_pdb_alignment_file, 'r'))
-		pdb_parent_seq_dict = dict(pdb_parent_seq_list)
-	
-		# Bail out if there are fewer than 2 sequences.
-		if len(pdb_parent_seq_dict.keys()) < 2:
-			print "Only found one uniquely named sequence in the PDB/parent alignment, %s.  Aborting..." % pdb_parent_seq_dict.keys()[0]
-			return
+        # Generate the contacts
+        # Read in the PDB file to create a list of residues.
+        with open(pdb_file, 'r') as res:
+                residues = pdb.File().read(res)
+        # Because the PDB file's residue sequence may differ from those of the parents, we
+        # must align the PDB residues to one parent.
+        if not parent_pdb_alignment_file:  # Just get PDB sequence from the multiple sequence alignment
+                try:
+                        aligned_pdb = parent_dict[pdb_key]
+                        aligned_prot = parent_dict[pdb_key]
+                except KeyError:
+                        print("Could not find sequence %s in the multiple sequence alignment file %s.  Aborting..." % (pdb_key, msa_file))
+                        return
+        else: # Pull information from the parent/PDB alignment file.
+                # Our objective is to find the sequence with the same key in both the parent MSA file and 
+                # the parent/PDB alignment file.
+                with open(parent_pdb_alignment_file, 'r') as res:
+                        pdb_parent_seq_list = schema.readMultipleSequenceAlignmentFile(res)
+                pdb_parent_seq_dict = dict(pdb_parent_seq_list)
+        
+                # Bail out if there are fewer than 2 sequences.
+                if len(pdb_parent_seq_dict.keys()) < 2:
+                        print("Only found one uniquely named sequence in the PDB/parent alignment, %s.  Aborting..." % pdb_parent_seq_dict.keys()[0])
+                        return
 
-		# Find the matching key
-		pdb_key = None
-		for k in parent_dict.keys():
-			if pdb_parent_seq_dict.has_key(k):
-				pdb_key = k
+                # Find the matching key
+                pdb_key = None
+                for k in parent_dict.keys():
+                        if k in pdb_parent_seq_dict:
+                                pdb_key = k
 
-		# Bail out if no matching key is found
-		if not pdb_key:
-			print "Could not find parents %s in PDB/parent aligned sequences %s.  Aborting..." % (parent_dict.keys(),)
-			return
-		aligned_prot = pdb_parent_seq_dict[pdb_key]
-		# Remove the sequence corresponding to the pdb_key, leaving only the parent sequence.
-		del pdb_parent_seq_dict[pdb_key]
-		# Take the first remaining sequence, which should be the parent sequence.
-		aligned_pdb = pdb_parent_seq_dict.values()[0]
+                # Bail out if no matching key is found
+                if not pdb_key:
+                        print("Could not find parents %s in PDB/parent aligned sequences %s.  Aborting..." % (parent_dict.keys(),))
+                        return
+                aligned_prot = pdb_parent_seq_dict[pdb_key]
+                # Remove the sequence corresponding to the pdb_key, leaving only the parent sequence.
+                del pdb_parent_seq_dict[pdb_key]
+                # Take the first remaining sequence, which should be the parent sequence.
+                aligned_pdb = list(pdb_parent_seq_dict.values())[0]
 
-	# Check to make sure the parent sequence from both alignment files matches.
-	if aligned_prot.replace('-','') != parent_dict[pdb_key].replace('-',''):
-		print "The PDB-aligned parent and the named parent, %s, don't match!  Aborting..." % (pdb_key,)
-		return
-	# Check to ensure the aligned PDB sequence matches the residue sequence pulled directly from the PDB file.
-	if aligned_pdb.replace('-','') != pdb.sequence(residues, chain_identifiers):
-		print "The parent-aligned PDB sequence, %s, and the PDB file sequence, chain(s) %s in %s, don't match!  Aborting..." % (pdb_key, chain_identifiers, pdb_file)
-		return
-	#print aligned_prot
-	#print aligned_pdb
-	#print parent_dict[pdb_key]
-	#print pdb.sequence(residues)
-	
-	# Align the residues with the parent protein.
-	try:
-		residues = schema.alignPDBResidues(residues, aligned_prot, aligned_pdb, parent_dict[pdb_key], chain_identifiers)
-	except ValueError, ve:
-		print ve
-		return
-	#print pdb.sequence(residues)
-	#print parent_dict[pdb_key]
-	
-	# 	The contact file name for output.
-	if arg_dict.has_key(ARG_OUTPUT_FILE):
-		contact_file = file(arg_dict[ARG_OUTPUT_FILE], 'w')
-	else:
-		contact_file = sys.stdout
-		
+        # Check to make sure the parent sequence from both alignment files matches.
+        if aligned_prot.replace('-','') != parent_dict[pdb_key].replace('-',''):
+                print("The PDB-aligned parent and the named parent, %s, don't match!  Aborting..." % (pdb_key,))
+                return
+        # Check to ensure the aligned PDB sequence matches the residue sequence pulled directly from the PDB file.
+        if aligned_pdb.replace('-','') != pdb.sequence(residues, chain_identifiers):
+                print("The parent-aligned PDB sequence, %s, and the PDB file sequence, chain(s) %s in %s, don't match!  Aborting..." % (pdb_key, chain_identifiers, pdb_file))
+                return
+        #print aligned_prot
+        #print aligned_pdb
+        #print parent_dict[pdb_key]
+        #print pdb.sequence(residues)
+        
+        # Align the residues with the parent protein.
+        try:
+                residues = schema.alignPDBResidues(residues, aligned_prot, aligned_pdb, parent_dict[pdb_key], chain_identifiers)
+        except ValueError as ve:
+                print(ve)
+                return
+        #print pdb.sequence(residues)
+        #print parent_dict[pdb_key]
+        
+        #       The contact file name for output.
+        if ARG_OUTPUT_FILE in arg_dict:
+                contact_file = open(arg_dict[ARG_OUTPUT_FILE], 'w')
+        else:
+                contact_file = sys.stdout
+                
 
-	# With an aligned set of residues and parents, we can now compute the SCHEMA contacts.
-	# Note that for more than two parents, some of these contacts may only be broken by 
-	# specific chimera patterns.
-	contact_distance = 4.5  # Residues closer than this distance, in angstroms, are in contact.
-	pdb_contacts = schema.getPDBContacts(residues, contact_distance)
-	schema.writeContactFile(pdb_contacts, contact_file)
-	
-	if not contact_file == sys.stdout:
-		contact_file.close()
+        # With an aligned set of residues and parents, we can now compute the SCHEMA contacts.
+        # Note that for more than two parents, some of these contacts may only be broken by 
+        # specific chimera patterns.
+        contact_distance = 4.5  # Residues closer than this distance, in angstroms, are in contact.
+        pdb_contacts = schema.getPDBContacts(residues, contact_distance)
+        schema.writeContactFile(pdb_contacts, contact_file)
+        
+        if not contact_file == sys.stdout:
+                contact_file.close()
 
-		
+                
 def main_wrapper():
-	main(sys.argv)
+        main(sys.argv)
 
 main_wrapper()
