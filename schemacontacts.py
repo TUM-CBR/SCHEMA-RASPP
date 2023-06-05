@@ -31,7 +31,8 @@ Endelman, J. et al., "Site-directed protein recombination as a shortest-path pro
 """
 
 import sys, string, os
-import pdb, schema
+from . import pdb
+from . import schema
 
 ARG_PDB_FILE = 'pdb'
 ARG_PDB_ALIGNMENT_FILE = 'pdbal'
@@ -100,7 +101,9 @@ def confirm_arguments(arg_dict):
         return res
 
 def main(args):
-        arg_dict = parse_arguments(args)
+        main_impl(parse_arguments(args))
+
+def main_impl(arg_dict):
         if not confirm_arguments(arg_dict):
                 if args[0].split(os.path.sep)[-1] == "schemacontacts.py":
                         print_usage(args)
@@ -233,4 +236,5 @@ def main(args):
 def main_wrapper():
         main(sys.argv)
 
-main_wrapper()
+if __name__ == '__main__':
+        main_wrapper()

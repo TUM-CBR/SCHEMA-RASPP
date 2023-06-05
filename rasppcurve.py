@@ -33,7 +33,9 @@ Endelman, J. et al., "Site-directed protein recombination as a shortest-path pro
 """
 
 import sys, os, string, math, random, time
-import pdb, schema, raspp
+from . import pdb
+from . import schema
+from . import raspp
 
 ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE = 'msa'
 ARG_CONTACT_FILE = 'con'
@@ -110,7 +112,9 @@ def confirm_arguments(arg_dict):
         return res
 
 def main(args):
-        arg_dict = parse_arguments(args)
+        main_impl(parse_arguments(args))
+
+def main_impl(arg_dict):
         if not confirm_arguments(arg_dict):
                 if args[0].split(os.path.sep)[-1] == "rasppcurve.py":
                         print_usage(args)
@@ -196,4 +200,5 @@ def main(args):
 def main_wrapper():
         main(sys.argv)
 
-main_wrapper()
+if __name__ == '__main__':
+        main_wrapper()
