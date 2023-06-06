@@ -33,7 +33,7 @@ Endelman, J. et al., "Site-directed protein recombination as a shortest-path pro
 """
 
 import sys, string, random
-import pdb
+from . import pdb
 
 DIGITS_LETTERS = string.digits + string.ascii_letters
 
@@ -274,8 +274,9 @@ def readMultipleSequenceAlignmentFile(f):
         """Reads a multiple sequence alignment file in ALN format."""
         parent_dict = {}
         keys = []
-        for line in f.readlines():
-                if line[0] == '#':  # comment line
+        for (i,line) in enumerate(f.readlines()):
+                if line[0] == '#' \
+                   or (i == 0 and line.startswith('CLUSTAL')): # comment line
                         continue
                 flds = line.strip().split()
                 # Skip lines with too little data to be sequence info

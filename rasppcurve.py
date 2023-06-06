@@ -112,13 +112,14 @@ def confirm_arguments(arg_dict):
         return res
 
 def main(args):
-        main_impl(parse_arguments(args))
-
-def main_impl(arg_dict):
+        args_dict =  parse_arguments(args)
         if not confirm_arguments(arg_dict):
                 if args[0].split(os.path.sep)[-1] == "rasppcurve.py":
                         print_usage(args)
                 return
+        main_impl(args_dict)
+
+def main_impl(arg_dict):
 
         # Flags and values
         print_E = False
