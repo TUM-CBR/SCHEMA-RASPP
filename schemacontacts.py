@@ -198,7 +198,7 @@ def main_impl(arg_dict):
                 print("The PDB-aligned parent and the named parent, %s, don't match!  Aborting..." % (pdb_key,))
                 return
         # Check to ensure the aligned PDB sequence matches the residue sequence pulled directly from the PDB file.
-        if aligned_pdb.replace('-','') != pdb.sequence(residues, chain_identifiers):
+        if aligned_pdb.replace('-','').replace('X', '') != pdb.sequence(residues, chain_identifiers):
                 print("The parent-aligned PDB sequence, %s, and the PDB file sequence, chain(s) %s in %s, don't match!  Aborting..." % (pdb_key, chain_identifiers, pdb_file))
                 return
         #print aligned_prot
