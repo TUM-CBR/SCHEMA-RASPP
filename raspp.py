@@ -273,7 +273,7 @@ def RASPP_SCHEMA(contacts, parents, num_crossovers, min_fragment_diversity):
 	return results
 
 	
-def RASPP(avg_energies, parents, num_crossovers, min_fragment_diversity):
+def RASPP(avg_energies, parents, num_crossovers, min_fragment_diversity, max_fragment_size=99999):
 	"""Find libraries with the lowest energy given constraints on fragment diversity."""
 	
 	# Collapse the parents to remove identical sites.  Necessary because RASPP's
@@ -307,7 +307,7 @@ def RASPP(avg_energies, parents, num_crossovers, min_fragment_diversity):
 	for l_min in range(min_l_min, max_l_min+1):
 		#print "l_min:", l_min, min_l_min, max_l_min
 		min_l_max =int(math.ceil(num_residues/(num_crossovers+1.0)))
-		max_l_max = num_residues-num_crossovers*l_min+1
+		max_l_max = min(num_residues-num_crossovers*l_min+1, max_fragment_size)
 		for l_max in range(min_l_max, max_l_max+1):
 			#print "  l_max:", l_max, min_l_max, max_l_max+1
 			# Find set of crossovers which minimize the average energy consistent with fragment-length constraints

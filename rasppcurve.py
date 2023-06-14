@@ -48,6 +48,7 @@ ARG_NUM_CROSSOVERS = 'xo'
 ARG_RANDOM_SEED = 'seed'
 ARG_COMPARE = 'compare'  # Unused
 ARG_HELP = 'help'
+ARG_MAX_FRAGMENT_SIZE = 'max'
 
 def parse_arguments(args):
         # Turn linear arguments into a dictionary of (option, [values,...]) pairs
@@ -153,6 +154,9 @@ def main_impl(arg_dict):
                 output_file.write("# No minimum fragment length specified; using L=4.\n")
                 min_length = 4
 
+        if ARG_MAX_FRAGMENT_SIZE in arg_dict:
+                max_length = int(arg_dict[ARG_MAX_FRAGMENT_SIZE])
+
         # Get the bin width
         if ARG_BIN_WIDTH in arg_dict:
                 bin_width = float(arg_dict[ARG_BIN_WIDTH])
@@ -181,7 +185,7 @@ def main_impl(arg_dict):
         avg_energies = raspp.calc_average_energies(energies, parents)
 
         tstart = time.time()
-        res = raspp.RASPP(avg_energies, parents, num_fragments-1, min_length)
+        res = raspp.RASPP(avg_energies, parents, num_fragments-1, min_length, max_length)
         output_file.write("# RASPP took %1.2f secs\n" % (time.time()-tstart,))
         output_file.write("# RASPP found %d results\n" % (len(res),))
 
