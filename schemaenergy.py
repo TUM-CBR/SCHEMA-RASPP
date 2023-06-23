@@ -141,6 +141,10 @@ def main(args):
 			print_usage(args)
 		return
 
+	main_impl(arg_dict)
+
+def main_impl(arg_dict):
+
 	# Flags and values
 	print_E = False
 	print_m = False
