@@ -31,7 +31,8 @@ Endelman, J. et al., "Site-directed protein recombination as a shortest-path pro
 """
 
 import sys, string, os
-import pdb, schema
+from . import pdb
+from . import schema
 
 ARG_PRINT_E = 'E'
 ARG_PRINT_M = 'm'
@@ -154,25 +155,25 @@ def main_impl(arg_dict):
 	#   The alignment/fragment file name.
 	msa_file = arg_dict[ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE]
 
-	if arg_dict.has_key(ARG_PRINT_E):
+	if ARG_PRINT_E in arg_dict:
 		print_E = True
-	if arg_dict.has_key(ARG_PRINT_M):
+	if ARG_PRINT_M in arg_dict:
 		print_m = True
 
 	# Read the alignment file to create a list of parents.
 	# The parents will appear in the list in the order in which they appear in the file.
-	parent_list = schema.readMultipleSequenceAlignmentFile(file(msa_file, 'r'))
+	parent_list = schema.readMultipleSequenceAlignmentFile(open(msa_file, 'r'))
 	parents = [p for (k,p) in parent_list]
 	
-	crossovers = schema.readCrossoverFile(file(arg_dict[ARG_CROSSOVER_FILE], 'r'))
+	crossovers = schema.readCrossoverFile(open(arg_dict[ARG_CROSSOVER_FILE], 'r'))
 	fragments = schema.getFragments(crossovers, parents[0])
 
 	# Get the contacts
-	pdb_contacts = schema.readContactFile(file(arg_dict[ARG_CONTACT_FILE], 'r'))
+	pdb_contacts = schema.readContactFile(open(arg_dict[ARG_CONTACT_FILE], 'r'))
 	contacts = schema.getSCHEMAContactsWithCrossovers(pdb_contacts, parents, crossovers)
 	
-	if arg_dict.has_key(ARG_OUTPUT_FILE):
-		output_file = file(arg_dict[ARG_OUTPUT_FILE], 'w')
+	if ARG_OUTPUT_FILE in arg_dict:
+		output_file = open(arg_dict[ARG_OUTPUT_FILE], 'w')
 
 	# Now, what does the user want?
 	output_string = '%s'
@@ -186,7 +187,7 @@ def main_impl(arg_dict):
 	output_string += '\n'
 	output_file.write('\n')
 	
-	if arg_dict.has_key(ARG_CHIMERAS): # Print values for chimeras
+	if ARG_CHIMERAS in arg_dict: # Print values for chimeras
 		chimeras = arg_dict[ARG_CHIMERAS]
 		# Could be a) a chimera, b) a list of chimeras, or c) a file of chimeras.
 		if type(chimeras) is list:
@@ -195,7 +196,7 @@ def main_impl(arg_dict):
 				outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m)
 		elif os.path.isfile(chimeras):
 			# It's a file of chimeras
-			for line in file(chimeras,'r').readlines():
+			for line in open(chimeras,'r').readlines():
 				chimera_blocks = line.strip()
 				outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m)
 		else:
@@ -208,7 +209,7 @@ def main_impl(arg_dict):
 		n = len(fragments)
 		Es = []
 		ms = []
-		for i in xrange(len(parents)**len(fragments)):
+		for i in range(len(parents)**len(fragments)):
 			# The next two lines turn i into a chimera block pattern 
 			# (e.g., 0 -> '11111111', 1 -> '11111112', 2 -> '11111113'...)
 			n2c = schema.base(i,p)
@@ -225,11 +226,12 @@ def main_impl(arg_dict):
 			mean_str = "# Average mutation <m> = %1.4f\n" % schema.mean(ms)
 			output_file.write(mean_str)
 	
-	if arg_dict.has_key(ARG_OUTPUT_FILE):
+	if ARG_OUTPUT_FILE  in arg_dict:
 		output_file.close()
 
 
 def main_wrapper():
 	main(sys.argv)
 
-main_wrapper()
+if __name__ == '__main__':
+	main_wrapper()
