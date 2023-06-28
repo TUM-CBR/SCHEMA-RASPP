@@ -32,7 +32,7 @@ Silberg, J. et al., "SCHEMA-guided protein recombination," Methods in Enzymology
 Endelman, J. et al., "Site-directed protein recombination as a shortest-path problem," Protein Engineering, Design & Selection 17(7):589-594 (2005).
 """
 
-import sys, string, random
+import string, random
 from . import pdb
 
 DIGITS_LETTERS = string.digits + string.ascii_letters
@@ -155,29 +155,6 @@ def getSCHEMAContacts(contacts, parents):
                         # This is a bona-fide breakable contact.
                         filtered_contacts.append((i,j,ri,rj))
         return filtered_contacts
-
-def getPDBContacts(residues, contact_distance):
-        # Get set of residues within contact_distance angstroms in a PDB
-        contacts = []
-        # Loop through all residue pairs
-        for i in range(0,len(residues)-1):
-                for j in range(i+1, len(residues)):
-                        resi = residues[i]
-                        resj = residues[j]
-                        # If both residues are present (gaps == None)
-                        if resi and resj:
-                                # If residues are within contact_distance angstroms of each other, add as a contact
-                                contact = resi.isContact(resj, contact_distance)
-                                if contact:
-                                        contacts.append((i, j, resi, resj))
-        return contacts
-
-def writeContactFile(contacts, outfile):
-        outfile.write("# Fields are number, contacting residues i & j (in library coordinates), and residues i & j (in PDB coordinates)\n")
-        outfile.write("# n      i       j       pdbi    pdbj\n")
-        for k in range(len(contacts)):
-                (i, j, resi, resj) = contacts[k]
-                outfile.write("%d\t%d\t%d\t%s\t%s\n" % (k, i, j, resi.res_seq, resj.res_seq))
 
 def readContactFile(f):
         contacts = []

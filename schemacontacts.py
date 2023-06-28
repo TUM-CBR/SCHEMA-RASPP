@@ -30,7 +30,8 @@ Silberg, J. et al., "SCHEMA-guided protein recombination," Methods in Enzymology
 Endelman, J. et al., "Site-directed protein recombination as a shortest-path problem," Protein Engineering, Design & Selection 17(7):589-594 (2005).
 """
 
-import sys, string, os
+import sys, os
+from .contacts import SchemaClassicEnergy, write_contacts
 from . import pdb
 from . import schema
 
@@ -225,9 +226,8 @@ def main_impl(arg_dict):
         # With an aligned set of residues and parents, we can now compute the SCHEMA contacts.
         # Note that for more than two parents, some of these contacts may only be broken by 
         # specific chimera patterns.
-        contact_distance = 4.5  # Residues closer than this distance, in angstroms, are in contact.
-        pdb_contacts = schema.getPDBContacts(residues, contact_distance)
-        schema.writeContactFile(pdb_contacts, contact_file)
+        pdb_contacts = SchemaClassicEnergy().get_pdb_contacts(residues)
+        write_contacts(pdb_contacts, contact_file)
         
         if not contact_file == sys.stdout:
                 contact_file.close()

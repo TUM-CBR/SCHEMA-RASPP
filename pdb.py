@@ -1,6 +1,6 @@
 #! /usr/local/bin/python
 
-import sys, os, math, string
+import math
 
 three_to_one_map =  {'ALA':'A', 'CYS':'C', 'ASP':'D', 'GLU':'E', 'PHE':'F', \
 			'GLY':'G', 'HIS':'H', 'ILE':'I', 'LYS':'K', 'LEU':'L', \
