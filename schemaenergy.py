@@ -31,6 +31,7 @@ Endelman, J. et al., "Site-directed protein recombination as a shortest-path pro
 """
 
 import sys, os
+from .contacts import read_contacts_file
 from . import schema
 
 ARG_PRINT_E = 'E'
@@ -119,8 +120,9 @@ def confirm_arguments(arg_dict):
 
 def outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m):
 	if not schema.checkChimera(chimera_blocks, fragments, parents):
-		output_file.write("# %s is not a valid chimera\n" % chimera_blocks)
-		return
+		error = "# %s is not a valid chimera\n" % chimera_blocks
+		output_file.write(error)
+		raise ValueError(error)
 	output_vars = [chimera_blocks]
 	E = None
 	m = None
@@ -168,7 +170,7 @@ def main_impl(arg_dict):
 	fragments = schema.getFragments(crossovers, parents[0])
 
 	# Get the contacts
-	pdb_contacts = schema.readContactFile(open(arg_dict[ARG_CONTACT_FILE], 'r'))
+	pdb_contacts = read_contacts_file(arg_dict[ARG_CONTACT_FILE])
 	contacts = schema.getSCHEMAContactsWithCrossovers(pdb_contacts, parents, crossovers)
 	
 	if ARG_OUTPUT_FILE in arg_dict:

@@ -33,6 +33,8 @@ Endelman, J. et al., "Site-directed protein recombination as a shortest-path pro
 """
 
 import string, random
+from typing import List, Tuple
+from .contacts import ContactsMatrix
 from . import pdb
 
 DIGITS_LETTERS = string.digits + string.ascii_letters
@@ -156,15 +158,6 @@ def getSCHEMAContacts(contacts, parents):
                         filtered_contacts.append((i,j,ri,rj))
         return filtered_contacts
 
-def readContactFile(f):
-        contacts = []
-        for line in f.readlines():
-                if line[0] == '#':  # comment line
-                        continue
-                flds = line.strip().split()
-                contacts.append((int(flds[1]), int(flds[2]), flds[3], flds[4]))
-        return contacts
-
 def checkChimera(chimera_blocks, fragments, parents):
         """Checks a chimera to see if it's valid."""
         # First see if there are the proper number of blocks
@@ -204,14 +197,17 @@ def indexToFragment(index, fragments):
                 (i,j) = fragments[frag_index]
                 if index >= i and index < j:
                         return frag_index
-        return None
 
-def getChimeraDisruption(chimera_blocks, contacts, fragments, parents):
+        raise ValueError("The index '%i' is not in fragments '%s'" % (index, str(fragments)))
+
+def getChimeraDisruption(chimera_blocks, contacts : ContactsMatrix, fragments, parents) -> float:
         """Takes a chimera block pattern, such as '11213312', and computes the SCHEMA
         disruption, the number of contacts broken by recombination."""
         parent_indices = [int(c)-1 for c in chimera_blocks]
         num_disruptions = 0
-        for (i,j,ri,rj) in contacts:
+        for contact in contacts:
+                i = contact.seq_i
+                j = contact.seq_j
                 frag_i = indexToFragment(i, fragments)
                 frag_j = indexToFragment(j, fragments)
                 if parent_indices[frag_i] == parent_indices[frag_j]:
@@ -221,7 +217,7 @@ def getChimeraDisruption(chimera_blocks, contacts, fragments, parents):
                 # If pair doesn't exist in any parent, it's counted as disruptive
                 if pair not in [(p[i], p[j]) for p in parents]:
                         #print chimera_blocks, i+1, j+1
-                        num_disruptions += 1
+                        num_disruptions += contact.energy
         return num_disruptions
 
 def getChimeraSequence(chimera_blocks, fragments, parents):
@@ -397,6 +393,7 @@ def generateRandomFragments(seq_length, num_fragments, min_length):
         pieces, each of which is no shorter than min_length."""
         # We will assume that the inputs have been properly checked
         assert(num_fragments*min_length <= seq_length)
+        fragments : 'List[Tuple[int, int]] | None' = None
 
         # There's a trivial but very hard case which is that the only suitable
         # crossover pattern is one which divvies up the protein into fragments
@@ -437,6 +434,7 @@ def generateRandomFragments(seq_length, num_fragments, min_length):
                                 # Failed to find a good crossover pattern this time.  Try again.
                                 tries += 1
 
+        assert fragments, "Bug in the code! Revise 'generateRandomFragments'"
         fragments.sort()
         return fragments
 

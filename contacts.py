@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from io import TextIOBase
 import json
-from typing import Iterable, List, NamedTuple
+from typing import List, NamedTuple, Tuple
 
 from .pdb import Residue
 
@@ -34,7 +34,7 @@ class Contact(NamedTuple):
 
     @property
     def energy(self) -> float:
-        return sum(i.strenght for i in self.interactions)
+        return sum(i.strength for i in self.interactions)
 
     def to_json_dict(self) -> dict:
         """
@@ -54,34 +54,64 @@ class Contact(NamedTuple):
         json_dict[Contact.K_INTERACTIONS] = [Interaction.from_json_dict(i) for i in json_dict[Contact.K_INTERACTIONS]]
         return Contact(**json_dict)
     
-def make_contacts(contacts : Iterable[Contact]) -> List[List[float]]:
-    """
-    Convert the given contacts into a representation that has efficient
-    lookup semantics. After all, do we really need to make python even
-    slower?
-    """
+Contacts = List[Contact]
 
-    size_i = 0
-    size_j = 0
+class ContactsMatrix(object):
 
-    for contact in contacts:
-        if contact.pdb_i > size_i:
-            size_i = contact.seq_i
-        if contact.pdb_j > size_j:
-            size_j = contact.seq_j
+    def __init__(self, contacts : Contacts):
+        self.__contacts = contacts
+        self.__matrix = ContactsMatrix.__make_contacts(contacts)
 
-    result = [0 for _i in range(size_i) for _j in range(size_j)]
+    def __iter__(self):
+        for contact in self.__contacts:
+            yield contact
 
-    for contact in contacts:
-        result[contact.seq_i][contact.seq_j] = contact.energy
+    def __getitem__(self, key : Tuple[int, int]) -> 'float | None':
+        (i,j) = key
+        return self.__matrix[i][j]
 
-    return result
+    @staticmethod
+    def __make_contacts(contacts : Contacts) -> List[List['float | None']]:
+        """
+        Convert the given contacts into a representation that has efficient
+        lookup semantics. After all, do we really need to make python even
+        slower?
+        """
 
-def write_contacts(contacts : Iterable[Contact], stream : TextIOBase) -> None:
+        size_i = 0
+        size_j = 0
+
+        for contact in contacts:
+            if contact.pdb_i > size_i:
+                size_i = contact.seq_i
+            if contact.pdb_j > size_j:
+                size_j = contact.seq_j
+
+        result : List[List['float | None']] = [[None for _j in range(size_j)] for _i in range(size_i)]
+
+        for contact in contacts:
+            result[contact.seq_i][contact.seq_j] = contact.energy
+
+        return result
+    
+def make_contacts(contacts : Contacts) -> ContactsMatrix:
+    return ContactsMatrix(contacts)
+
+def write_contacts(contacts : Contacts, stream : TextIOBase) -> None:
     json.dump(
         [contact.to_json_dict() for contact in contacts],
         stream
     )
+
+def read_contacts_objects(stream : TextIOBase) -> Contacts:
+    return [Contact.from_json_dict(value) for value in json.load(stream)]
+
+def read_contacts(stream : TextIOBase) -> ContactsMatrix:
+    return make_contacts(read_contacts_objects(stream))
+
+def read_contacts_file(file_name : str) -> ContactsMatrix:
+    with open(file_name, 'r') as stream:
+        return read_contacts(stream)
 
 class ContactEnergy(object, metaclass=ABCMeta):
 

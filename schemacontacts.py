@@ -102,14 +102,14 @@ def confirm_arguments(arg_dict):
         return res
 
 def main(args):
-        main_impl(parse_arguments(args))
-
-def main_impl(arg_dict):
+        arg_dict = parse_arguments(args)
         if not confirm_arguments(arg_dict):
                 if args[0].split(os.path.sep)[-1] == "schemacontacts.py":
                         print_usage(args)
                 return
+        main_impl(arg_dict)
 
+def main_impl(arg_dict):
         # Flags and values
         
         # Inputs:
@@ -131,7 +131,7 @@ def main_impl(arg_dict):
                 else:
                         parent_pdb_alignment_file = arg_dict[ARG_PDB_ALIGNMENT_FILE]
         else:
-                pdb_key = pdb.File().getIDCode(file(pdb_file,'r'))
+                pdb_key = pdb.File().getIDCode(open(pdb_file,'r'))
                 
         # The PDB chains
         # Many PDB files include multiple chains.  The chain_identifier list includes those
