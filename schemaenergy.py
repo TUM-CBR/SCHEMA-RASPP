@@ -31,7 +31,7 @@ Endelman, J. et al., "Site-directed protein recombination as a shortest-path pro
 """
 
 import sys, os
-from .contacts import read_contacts_file
+from .contacts import ContactsMatrix, read_contacts_file
 from . import schema
 
 ARG_PRINT_E = 'E'
@@ -118,7 +118,7 @@ def confirm_arguments(arg_dict):
 		res = False
 	return res
 
-def outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m):
+def outputEnergies(chimera_blocks, contacts : ContactsMatrix, fragments, parents, output_file, output_string, print_E, print_m):
 	if not schema.checkChimera(chimera_blocks, fragments, parents):
 		error = "# %s is not a valid chimera\n" % chimera_blocks
 		output_file.write(error)

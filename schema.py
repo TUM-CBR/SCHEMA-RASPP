@@ -120,14 +120,14 @@ def alignPDBResidues(residues, aligned_parent_protein, aligned_pdb_protein, libr
                         break
         return new_residues
 
-def getSCHEMAContactsWithCrossovers(contacts, parents, crossovers):
+def getSCHEMAContactsWithCrossovers(contacts : ContactsMatrix, parents, crossovers):
         """Get contacts with correction for parental sequence identity
         and for fragments."""
         fragments = getFragments(crossovers, parents[0])
-        filtered_contacts = []
+        filtered_contacts : List[Tuple[int, int]] = []
         # First eliminate contacts between residues in the same fragment.  These
         # can never be broken by recombination.
-        for (i, j, ri, rj) in contacts:
+        for (i, j, ri, rj, interaction) in contacts.iterate_contacts():
                 same_fragment = False
                 for (k,l) in fragments:
                         if i>=k and i<l and j>=k and j<l:
@@ -139,8 +139,8 @@ def getSCHEMAContactsWithCrossovers(contacts, parents, crossovers):
                         pj = [x[j] for x in parents]
                         if not (pi.count(pi[0])==len(pi) or pj.count(pj[0])==len(pj)): # if neither i or j absolutely conserved
                                 # This is a bona-fide breakable contact.
-                                filtered_contacts.append((i,j,ri,rj))
-        return filtered_contacts
+                                filtered_contacts.append((i,j))
+        return contacts.mask(filtered_contacts)
 
 def getSCHEMAContacts(contacts, parents):
         """Get contacts with correction for parental sequence identity."""
@@ -205,7 +205,7 @@ def getChimeraDisruption(chimera_blocks, contacts : ContactsMatrix, fragments, p
         disruption, the number of contacts broken by recombination."""
         parent_indices = [int(c)-1 for c in chimera_blocks]
         num_disruptions = 0
-        for contact in contacts:
+        for contact in contacts.iterate_contacts():
                 i = contact.seq_i
                 j = contact.seq_j
                 frag_i = indexToFragment(i, fragments)

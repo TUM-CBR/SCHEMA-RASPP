@@ -1,7 +1,7 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod, abstractproperty
 from io import TextIOBase
 import json
-from typing import List, NamedTuple, Tuple
+from typing import Iterable, List, NamedTuple, Optional, Tuple
 
 from .pdb import Residue
 
@@ -54,24 +54,88 @@ class Contact(NamedTuple):
         json_dict[Contact.K_INTERACTIONS] = [Interaction.from_json_dict(i) for i in json_dict[Contact.K_INTERACTIONS]]
         return Contact(**json_dict)
     
-Contacts = List[Contact]
+class InteractionMeta(NamedTuple):
+    name : str
+
+    @staticmethod
+    def from_json_dict(interaction : dict) -> 'InteractionMeta':
+        return InteractionMeta(**interaction)
+
+    def to_json_dict(self) -> dict:
+        return self._asdict()
+
+class Contacts(NamedTuple):
+    K_INTERACTIONS = 'interactions'
+    interactions : List[InteractionMeta]
+
+    K_CONTACTS = 'contacts'
+    contacts : List[Contact]
+    
+    def __getitem__(self, key : int) -> Contact:
+        return self.contacts[key]
+    
+    def mask(self, targets : List[Tuple[int, int]]) -> 'Contacts':
+        new_contacts = [
+            contact
+            for contact in self.contacts
+            if (contact.seq_i, contact.seq_j) in targets
+        ]
+
+        return Contacts(
+            interactions=self.interactions,
+            contacts=new_contacts
+        )
+    
+    @staticmethod
+    def from_json_dict(json_dict : dict) -> 'Contacts':
+        interactions = [
+            InteractionMeta.from_json_dict(interaction)
+            for interaction in json_dict[Contacts.K_INTERACTIONS]
+        ]
+        contacts = [
+            Contact.from_json_dict(contact)
+            for contact in json_dict[Contacts.K_CONTACTS]
+        ]
+
+        return Contacts(
+            interactions = interactions,
+            contacts = contacts
+        )
+    
+    def to_json_dict(self) -> dict:
+        return {
+            Contacts.K_CONTACTS: [contact.to_json_dict() for contact in self.contacts],
+            Contacts.K_INTERACTIONS: [interaction.to_json_dict() for interaction in self.interactions]
+        }
 
 class ContactsMatrix(object):
 
-    def __init__(self, contacts : Contacts):
+    def __init__(
+            self,
+            contacts : Contacts,
+            matrix : Optional[List[List[Optional[float]]]] = None):
         self.__contacts = contacts
-        self.__matrix = ContactsMatrix.__make_contacts(contacts)
+        self.__matrix = matrix or ContactsMatrix.__make_contacts(contacts)
 
-    def __iter__(self):
-        for contact in self.__contacts:
-            yield contact
+    @property
+    def contacts(self) -> Contacts:
+        return self.__contacts
+    
+    def iterate_contacts(self) -> Iterable[Contact]:
+        return self.__contacts.contacts.__iter__()
 
     def __getitem__(self, key : Tuple[int, int]) -> 'float | None':
         (i,j) = key
         return self.__matrix[i][j]
+    
+    def mask(self, targets : List[Tuple[int, int]]) -> 'ContactsMatrix':
+        return ContactsMatrix(
+            contacts=self.__contacts.mask(targets),
+            matrix=self.__matrix
+        )
 
     @staticmethod
-    def __make_contacts(contacts : Contacts) -> List[List['float | None']]:
+    def __make_contacts(contacts : Contacts) -> List[List[Optional[float]]]:
         """
         Convert the given contacts into a representation that has efficient
         lookup semantics. After all, do we really need to make python even
@@ -81,15 +145,15 @@ class ContactsMatrix(object):
         size_i = 0
         size_j = 0
 
-        for contact in contacts:
+        for contact in contacts.contacts:
             if contact.pdb_i > size_i:
-                size_i = contact.seq_i
+                size_i = contact.seq_i + 1
             if contact.pdb_j > size_j:
-                size_j = contact.seq_j
+                size_j = contact.seq_j + 1
 
         result : List[List['float | None']] = [[None for _j in range(size_j)] for _i in range(size_i)]
 
-        for contact in contacts:
+        for contact in contacts.contacts:
             result[contact.seq_i][contact.seq_j] = contact.energy
 
         return result
@@ -99,12 +163,12 @@ def make_contacts(contacts : Contacts) -> ContactsMatrix:
 
 def write_contacts(contacts : Contacts, stream : TextIOBase) -> None:
     json.dump(
-        [contact.to_json_dict() for contact in contacts],
+        contacts.to_json_dict(),
         stream
     )
 
 def read_contacts_objects(stream : TextIOBase) -> Contacts:
-    return [Contact.from_json_dict(value) for value in json.load(stream)]
+    return Contacts.from_json_dict(json.load(stream))
 
 def read_contacts(stream : TextIOBase) -> ContactsMatrix:
     return make_contacts(read_contacts_objects(stream))
@@ -115,17 +179,29 @@ def read_contacts_file(file_name : str) -> ContactsMatrix:
 
 class ContactEnergy(object, metaclass=ABCMeta):
 
-    @abstractmethod
-    def get_pdb_contacts(self, residues : List[Residue]) -> List[Contact]:
+    @abstractproperty
+    def interactions(self) -> List[InteractionMeta]:
         ...
+
+    @abstractmethod
+    def enumerate_contacts(self, residues : List[Residue]) -> List[Contact]:
+        ...
+
+    def get_pdb_contacts(self, residues : List[Residue]) -> Contacts:
+        contact_list = self.enumerate_contacts(residues)
+        return Contacts(
+            interactions=self.interactions,
+            contacts=contact_list
+        )
+
 
 class ContactPairwiseEnergy(ContactEnergy, metaclass=ABCMeta):
 
     @abstractmethod
-    def get_interactions(self, res_i : Residue, res_j : Residue) -> 'List[Interaction] | None':
+    def get_interactions(self, res_i : Residue, res_j : Residue) -> Optional[List[Interaction]]:
         ...
 
-    def get_pdb_contacts(self, residues: List[Residue]) -> List[Contact]:
+    def enumerate_contacts(self, residues: List[Residue]) -> List[Contact]:
         return [
             Contact(i, j, res_i.res_seq, res_j.res_seq, interactions)
             for (i, res_i) in enumerate(residues)
@@ -137,12 +213,17 @@ class ContactPairwiseEnergy(ContactEnergy, metaclass=ABCMeta):
 class SchemaClassicEnergy(ContactPairwiseEnergy):
 
     BACKBONE_ATOMS = ['H', 'O']
+    K_SCHEMA = "schema"
 
     def __init__(self, max_distance : float = 4.5) -> None:
         super().__init__()
         self.__max_distance = max_distance
 
-    def get_interactions(self, res_i: Residue, res_j: Residue) -> 'List[Interaction] | None':
+    @property
+    def interactions(self) -> List[InteractionMeta]:
+        return [InteractionMeta(SchemaClassicEnergy.K_SCHEMA)]
+
+    def get_interactions(self, res_i: Residue, res_j: Residue) -> Optional[List[Interaction]]:
 
         for atom in res_i.atoms[1:]:
             if atom.atom_name in SchemaClassicEnergy.BACKBONE_ATOMS:
@@ -152,5 +233,5 @@ class SchemaClassicEnergy(ContactPairwiseEnergy):
                     continue
                 dist = atom.getDistance(other_atom)
                 if dist <= self.__max_distance:
-                    return [Interaction("schema", atom.atom_name, other_atom.atom_name, 1)]
+                    return [Interaction(SchemaClassicEnergy.K_SCHEMA, atom.atom_name, other_atom.atom_name, 1)]
 
