@@ -1,9 +1,36 @@
 from abc import ABCMeta, abstractmethod, abstractproperty
+from enum import Enum
 from io import TextIOBase
 import json
-from typing import Iterable, List, NamedTuple, Optional, Tuple
+from typing import Any, cast, Iterable, List, NamedTuple, Optional, TextIO, Tuple
 
 from .pdb import Residue
+
+def namedtuple_to_json(obj : Any):
+    if isinstance(obj, tuple) and hasattr(obj, '_asdict'):
+        return namedtuple_to_json(cast(Any, obj)._asdict())
+    elif isinstance(obj, dict):
+        return {key: namedtuple_to_json(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [namedtuple_to_json(item) for item in obj]
+    elif isinstance(obj, Enum):
+        return obj.value
+    else:
+        return obj
+
+def json_to_namedtuple(data, namedtuple_class):
+    if isinstance(data, dict):
+        converted_data = {
+            key: json_to_namedtuple(value, namedtuple_class._field_types[key])
+            for key, value in data.items()
+        }
+        return namedtuple_class(**converted_data)
+    elif isinstance(data, list):
+        return [json_to_namedtuple(item, namedtuple_class.__args__[0]) for item in data]
+    elif Enum.__subclasscheck__(namedtuple_class):
+        return namedtuple_class(data)
+    else:
+        return data
 
 class Interaction(NamedTuple):
     name : str
@@ -70,9 +97,6 @@ class Contacts(NamedTuple):
 
     K_CONTACTS = 'contacts'
     contacts : List[Contact]
-    
-    def __getitem__(self, key : int) -> Contact:
-        return self.contacts[key]
     
     def mask(self, targets : List[Tuple[int, int]]) -> 'Contacts':
         new_contacts = [
@@ -194,11 +218,10 @@ class ContactEnergy(object, metaclass=ABCMeta):
             contacts=contact_list
         )
 
-
 class ContactPairwiseEnergy(ContactEnergy, metaclass=ABCMeta):
 
     @abstractmethod
-    def get_interactions(self, res_i : Residue, res_j : Residue) -> Optional[List[Interaction]]:
+    def get_interactions(self, res_i : Residue, res_j : Residue) -> Optional[Iterable[Interaction]]:
         ...
 
     def enumerate_contacts(self, residues: List[Residue]) -> List[Contact]:
@@ -206,9 +229,8 @@ class ContactPairwiseEnergy(ContactEnergy, metaclass=ABCMeta):
             Contact(i, j, res_i.res_seq, res_j.res_seq, interactions)
             for (i, res_i) in enumerate(residues)
             for (j, res_j) in enumerate(residues) if j > i and res_i and res_j
-            for interactions in [self.get_interactions(res_i, res_j)] if interactions
+            for interactions in [list(self.get_interactions(res_i, res_j) or [])] if len(interactions) > 0
         ]
-
 
 class SchemaClassicEnergy(ContactPairwiseEnergy):
 
@@ -235,3 +257,183 @@ class SchemaClassicEnergy(ContactPairwiseEnergy):
                 if dist <= self.__max_distance:
                     return [Interaction(SchemaClassicEnergy.K_SCHEMA, atom.atom_name, other_atom.atom_name, 1)]
 
+class Charge(Enum):
+    POS = 0
+    NEG = 1
+    BOTH = 2
+
+class ChargeInteractionResidueTempalte(NamedTuple):
+
+    # * means any/all residue
+    residue : str
+
+    # [] means any/all atoms
+    atoms : List[str]
+    charge : Charge
+
+class TwoChargeInteractionTemplate(NamedTuple):
+
+    name : str
+
+    # Arbitrary strenght score this interaction
+    # should receive per atom
+    strength : float
+
+    # Distance in amstrongs
+    distance : float
+
+    interactions : List[ChargeInteractionResidueTempalte]
+
+def write_interactions(interactions : List[TwoChargeInteractionTemplate], stream : TextIO) -> None:
+    json.dump(namedtuple_to_json(interactions), stream)
+
+def read_interactions(stream : TextIOBase) -> ContactEnergy:
+    templates = json_to_namedtuple(json.load(stream), List[TwoChargeInteractionTemplate])
+    return CompositeEnergy(
+        [
+            TwoChargeEnergy(cast(TwoChargeInteractionTemplate, template))
+            for template in templates
+        ]
+    )
+
+class TwoChargeEnergy(ContactPairwiseEnergy):
+
+    K_WILDCARD = "*"
+
+    def __init__(self, template : TwoChargeInteractionTemplate):
+        self.__template = template
+        self.__interactions_dict = dict(
+            ((interaction.residue.lower(), atom.lower()), interaction.charge)
+            for interaction in template.interactions
+            for atom in (len(interaction.atoms) > 0 and interaction.atoms or [TwoChargeEnergy.K_WILDCARD])
+        )
+
+    def __get_charge(self, res : str, atom : str) -> Optional[Charge]:
+        keys = (
+            (k_resi, k_atom)
+            for k_resi in [res.lower(), TwoChargeEnergy.K_WILDCARD]
+            for k_atom in [atom.lower(), TwoChargeEnergy.K_WILDCARD]
+        )
+        return next(
+            (
+                value
+                for key in keys
+                for value in [self.__interactions_dict.get(key)] if value
+            ),
+            None
+        )
+
+    @staticmethod
+    def is_positive(c : Charge) -> bool:
+        return c == Charge.POS or c == Charge.BOTH
+
+    @staticmethod
+    def is_negative(c : Charge) -> bool:
+        return c == Charge.NEG or c == Charge.BOTH
+
+    @property
+    def __distance(self) -> float:
+        return self.__template.distance
+
+    @property
+    def __strength(self) -> float:
+        return self.__template.strength
+
+    @property
+    def __name(self) -> str:
+        return self.__template.name
+
+    @property
+    def interactions(self) -> List[InteractionMeta]:
+        return [InteractionMeta(self.__template.name)]
+
+    def get_interactions(self, res_i: Residue, res_j: Residue) -> Iterable[Interaction]:
+
+        for atom_i in res_i.atoms:
+            for atom_j in res_j.atoms:
+                int_i = self.__get_charge(res_i.residue, atom_i.atom_name)
+                int_j = self.__get_charge(res_j.residue, atom_j.atom_name)
+
+                if not int_i or not int_j \
+                    or atom_i.getDistance(atom_j) > self.__distance:
+                    continue
+                elif TwoChargeEnergy.is_positive(int_i) and TwoChargeEnergy.is_negative(int_j) \
+                    or TwoChargeEnergy.is_negative(int_i) and TwoChargeEnergy.is_positive(int_i):
+                    value = self.__strength
+                else:
+                    value = -self.__strength
+
+                yield Interaction(
+                    self.__name,
+                    atom_i.atom_name,
+                    atom_j.atom_name,
+                    value
+                )
+
+class CompositeEnergy(ContactEnergy):
+
+    def __init__(self, energies : List[ContactEnergy]):
+        self.__energies = energies
+        self.__interactions = [
+            interaction
+            for energy in self.__energies
+            for interaction in energy.interactions
+        ]
+
+    @property
+    def interactions(self) -> List[InteractionMeta]:
+        return self.__interactions
+
+    def enumerate_contacts(self, residues: List[Residue]) -> List[Contact]:
+        return [
+            # imagine if this could run in parallel
+            contact
+            for interaction in self.__energies
+            for contact in interaction.enumerate_contacts(residues)
+        ]
+
+van_der_waals = TwoChargeInteractionTemplate(
+    name = "Van der Waals",
+    strength = 1,
+    distance = 3,
+    interactions = [
+        ChargeInteractionResidueTempalte(
+            residue = "*",
+            atoms = [],
+            charge = Charge.BOTH
+        )
+    ]
+)
+
+electrostatic_interactions = TwoChargeInteractionTemplate(
+    name = "electrostatic",
+    strength = 15,
+    distance = 5,
+    interactions = [
+        ChargeInteractionResidueTempalte(
+            residue = "arg",
+            atoms = ["ne", "cz", "nh"],
+            charge= Charge.POS
+        ),
+        ChargeInteractionResidueTempalte(
+            residue = "lys",
+            atoms = ["nz"],
+            charge= Charge.POS
+        ),
+        ChargeInteractionResidueTempalte(
+            residue = "glu",
+            atoms = ["oe"],
+            charge= Charge.NEG
+        ),
+        ChargeInteractionResidueTempalte(
+            residue = "asp",
+            atoms = ["od"],
+            charge= Charge.NEG
+        ),
+        ChargeInteractionResidueTempalte(
+            residue = "his",
+            atoms = ["cg", "cd", "nd", "ce", "ne"],
+            charge= Charge.NEG
+        ),
+    ]
+)

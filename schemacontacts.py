@@ -31,7 +31,7 @@ Endelman, J. et al., "Site-directed protein recombination as a shortest-path pro
 """
 
 import sys, os
-from .contacts import SchemaClassicEnergy, write_contacts
+from .contacts import SchemaClassicEnergy, read_interactions, write_contacts
 from . import pdb
 from . import schema
 
@@ -42,6 +42,7 @@ ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE = 'msa'
 ARG_OUTPUT_FILE = 'o'
 ARG_HELP = 'help'
 ARG_CHAINS = 'chains'
+ARG_INTERACTIONS = "interactions"
 
 def parse_arguments(args):
         # Turn linear arguments into a dictionary of (option, [values,...]) pairs
@@ -71,7 +72,9 @@ def print_usage(args):
                 "\t-%s <multiple sequence alignment file>\n" % ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE, \
                 "\t[-%s <PDB-parent alignment file>]\n" % ARG_PDB_ALIGNMENT_FILE,\
                 "\t[-%s <PDB chains list>]\n" % ARG_CHAINS,\
-                "\t[-%s <contacts output file>]" % ARG_OUTPUT_FILE)
+                "\t[-%s <contacts output file>]" % ARG_OUTPUT_FILE, \
+                "\t[-%s <file with interactions scoring (regular SCHEMA if ommited)>]"
+        )
 
 def confirm_arguments(arg_dict):
         # Are arguments okay?
@@ -146,6 +149,12 @@ def main_impl(arg_dict):
                         chain_identifiers = [chains, ' ']
         else:
                 chain_identifiers = ['A',' ']
+
+        if arg_dict.get(ARG_INTERACTIONS):
+                with open(arg_dict[ARG_INTERACTIONS], 'r') as f_interactions:
+                        interactions = read_interactions(f_interactions)
+        else:
+                interactions = SchemaClassicEnergy()
         
         # Read the alignment file to create a list of parents.
         # The parents will appear in the list in the order in which they appear in the file.
@@ -226,7 +235,7 @@ def main_impl(arg_dict):
         # With an aligned set of residues and parents, we can now compute the SCHEMA contacts.
         # Note that for more than two parents, some of these contacts may only be broken by 
         # specific chimera patterns.
-        pdb_contacts = SchemaClassicEnergy().get_pdb_contacts(residues)
+        pdb_contacts = interactions.get_pdb_contacts(residues)
         write_contacts(pdb_contacts, contact_file)
         
         if not contact_file == sys.stdout:
