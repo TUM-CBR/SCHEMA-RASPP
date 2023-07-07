@@ -80,6 +80,26 @@ class Contact(NamedTuple):
         json_dict = json_dict.copy()
         json_dict[Contact.K_INTERACTIONS] = [Interaction.from_json_dict(i) for i in json_dict[Contact.K_INTERACTIONS]]
         return Contact(**json_dict)
+
+    def sort(self) -> 'Contact':
+        if self.seq_i > self.seq_j:
+            return Contact(
+                seq_i = self.seq_j,
+                seq_j = self.seq_i,
+                pdb_i = self.pdb_j,
+                pdb_j = self.pdb_i,
+                interactions = [
+                    Interaction(
+                        name = i.name,
+                        atom_i = i.atom_j,
+                        atom_j = i.atom_i,
+                        strength = i.strength
+                    )
+                    for i in self.interactions
+                ]
+            )
+        else:
+            return self
     
 class InteractionMeta(NamedTuple):
     name : str
@@ -98,7 +118,8 @@ class Contacts(NamedTuple):
     K_CONTACTS = 'contacts'
     contacts : List[Contact]
     
-    def mask(self, targets : List[Tuple[int, int]]) -> 'Contacts':
+    def mask(self, targets_it : Iterable[Tuple[int, int]]) -> 'Contacts':
+        targets = set(targets_it)
         new_contacts = [
             contact
             for contact in self.contacts
@@ -125,6 +146,18 @@ class Contacts(NamedTuple):
             interactions = interactions,
             contacts = contacts
         )
+
+    def sort(self) -> 'Contacts':
+        contacts = \
+            sorted(
+                (contact.sort() for contact in self.contacts),
+                key = lambda contact: (contact.seq_i, contact.seq_j)
+            )
+        return Contacts(
+            interactions = self.interactions,
+            contacts = contacts
+        )
+
     
     def to_json_dict(self) -> dict:
         return {
@@ -138,7 +171,7 @@ class ContactsMatrix(object):
             self,
             contacts : Contacts,
             matrix : Optional[List[List[Optional[float]]]] = None):
-        self.__contacts = contacts
+        self.__contacts = contacts.sort()
         self.__matrix = matrix or ContactsMatrix.__make_contacts(contacts)
 
     @property
@@ -152,7 +185,7 @@ class ContactsMatrix(object):
         (i,j) = key
         return self.__matrix[i][j]
     
-    def mask(self, targets : List[Tuple[int, int]]) -> 'ContactsMatrix':
+    def mask(self, targets : Iterable[Tuple[int, int]]) -> 'ContactsMatrix':
         return ContactsMatrix(
             contacts=self.__contacts.mask(targets),
             matrix=self.__matrix
@@ -166,19 +199,19 @@ class ContactsMatrix(object):
         slower?
         """
 
-        size_i = 0
-        size_j = 0
+        size_all = 0
 
         for contact in contacts.contacts:
-            if contact.pdb_i > size_i:
-                size_i = contact.seq_i + 1
-            if contact.pdb_j > size_j:
-                size_j = contact.seq_j + 1
+            if contact.pdb_i > size_all:
+                size_all = contact.seq_i + 1
+            if contact.pdb_j > size_all:
+                size_all = contact.seq_j + 1
 
-        result : List[List['float | None']] = [[None for _j in range(size_j)] for _i in range(size_i)]
+        result : List[List['float | None']] = [[None for _j in range(size_all)] for _i in range(size_all)]
 
         for contact in contacts.contacts:
             result[contact.seq_i][contact.seq_j] = contact.energy
+            result[contact.seq_j][contact.seq_i] = contact.energy
 
         return result
     

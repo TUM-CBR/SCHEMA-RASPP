@@ -142,21 +142,17 @@ def getSCHEMAContactsWithCrossovers(contacts : ContactsMatrix, parents, crossove
                                 filtered_contacts.append((i,j))
         return contacts.mask(filtered_contacts)
 
-def getSCHEMAContacts(contacts, parents):
+def getSCHEMAContacts(contacts : ContactsMatrix, parents : List[str]) -> ContactsMatrix:
         """Get contacts with correction for parental sequence identity."""
-        filtered_contacts = []
         # First eliminate contacts between residues in the same fragment.  These
         # can never be broken by recombination.
-        for (i, j, ri, rj) in contacts:
-                # Eliminate contacts where either residue is absolutely conserved.
-                # These can never be broken by recombination.
-                pi = [x[i] for x in parents]
-                pj = [x[j] for x in parents]
-                # if neither i or j absolutely conserved
-                if not (pi.count(pi[0])==len(pi) or pj.count(pj[0])==len(pj)): 
-                        # This is a bona-fide breakable contact.
-                        filtered_contacts.append((i,j,ri,rj))
-        return filtered_contacts
+        return contacts.mask(
+                (contact.seq_i, contact.seq_j)
+                for contact in contacts.iterate_contacts()
+                for pi in [[x[contact.seq_i] for x in parents]]
+                for pj in [[x[contact.seq_j] for x in parents]]
+                if not (pi.count(pi[0])==len(pi) or pj.count(pj[0])==len(pj))
+        )
 
 def checkChimera(chimera_blocks, fragments, parents):
         """Checks a chimera to see if it's valid."""

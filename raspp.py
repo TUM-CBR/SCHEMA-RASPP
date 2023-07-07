@@ -1,6 +1,9 @@
 #! /usr/local/bin/python
 
-import sys, os, math, string, random, copy, time
+import math, time
+from typing import Iterable, List, NamedTuple, Tuple
+
+from .contacts import ContactsMatrix
 from . import schema
 
 HUGE_NUMBER = 1.0e10
@@ -112,47 +115,48 @@ def calc_average_energies_from_contacts(contacts, parents):
 		avg_energy_matrix[j][i] = avg
 	return avg_energy_matrix
 
-def order_contacts(contacts):
-	new_contacts = []
-	for (i,j,ri,rj) in contacts:
-		if i>j:
-			new_contacts.append((j,i,rj,ri))
-		else:
-			new_contacts.append((i,j,ri,rj))
-	new_contacts.sort()
-	return new_contacts
+class Energy(NamedTuple):
+	seq_i : int
+	seq_j : int
+	parent_p : int
+	parent_q : int
+	energy : float
 
-def make_4d_energies(contacts, parents):
-	ordered_contacts = order_contacts(contacts)
-	energies = []
-	for (i,j,ri,rj) in ordered_contacts:
-		for p in range(len(parents)):
-			parp = parents[p]
-			for q in range(len(parents)):
-				if p != q:
-					parq = parents[q]
-					pair = (parp[i], parq[j])
-					if pair not in [(r[i], r[j]) for r in parents]:
-						energies.append((i,j,p,q))
-	return energies
+Energies = List[Energy]
 
-def calc_average_energies(energies, parents):
+def make_4d_energies(contacts : ContactsMatrix, parents : List[str]) -> Energies:
+	return [
+		Energy(seq_i = i, seq_j = j, parent_p = p, parent_q= q, energy = contact.energy)
+		for contact in contacts.iterate_contacts()
+		for (i,j) in [(contact.seq_i, contact.seq_j)]
+		for (p, parp) in enumerate(parents)
+		for (q, parq) in enumerate(parents)
+		if p != q and (parp[i], parq[j]) not in [(r[i], r[j]) for r in parents]
+
+	]
+
+AverageEnergy = Tuple[int, int, float]
+
+def calc_average_energies(energies : Energies, parents : List[str]) -> Iterable[AverageEnergy]:
 	num_residues = len(parents[0])
 	num_parents = len(parents)
-	avg_energies = []
 	#energy_dict = dict([(x,1) for x in energies])
 	for i in range(num_residues-1):
 		for j in range(i+1, num_residues):
-			ij = [(ri,rj,p,q) for (ri,rj,p,q) in energies if ri==i and rj==j]
-			nij = len(ij)
-			nij_same = len([(ri,rj) for (ri,rj,p,q) in ij if ri==i and rj==j and p==q])
-			#print i, j, nij, nij_same
+			ij = []
+			nij = 0
+			ij = [e for e in energies if e.seq_i == i and e.seq_j == j]
+			nij = sum(e.energy for e in ij)
+			nij_same = sum(e.energy for e in ij if e.seq_i==i and e.seq_j==j and e.parent_p==e.parent_q)
 			diff = nij - nij_same
 			avg = float(diff)/(num_parents**2)
-			avg_energies.append((i,j,avg))
-	return avg_energies
+			yield (i,j,avg)
 	
-def avg_energy_list_to_matrix(avg_energies, num_residues, init_value=0.0):
+def avg_energy_list_to_matrix(
+	avg_energies : Iterable[AverageEnergy],
+	num_residues : int,
+	init_value : float = 0.0
+	):
 	# Now construct a matrix
 	avg_energy_matrix = make_2d_array(num_residues, num_residues, init_value)
 	for (i,j,avg) in avg_energies:
@@ -170,7 +174,7 @@ def calc_average_library_energy(avg_energy_matrix, num_residues, xover1, xover2)
 			lib_avg_energy += avg_energy_matrix[i][j]
 	return lib_avg_energy
 
-def calc_arc_lengths(avg_energies, parents):
+def calc_arc_lengths(avg_energies : Iterable[AverageEnergy], parents : List[str]):
 	# Calculate the lengths, in average energies, from crossovers starting
 	# at residue r1 to residue r2.
 	# The fragments here begin at r1 and end at r2-1
@@ -272,8 +276,15 @@ def RASPP_SCHEMA(contacts, parents, num_crossovers, min_fragment_diversity):
 		results[i] = (avg_E, crossovers, l_min, l_max)
 	return results
 
-	
-def RASPP(avg_energies, parents, num_crossovers, min_fragment_diversity, max_fragment_size=99999):
+RASPPResult = Tuple[float, List[int], int, int]
+
+def RASPP(
+	avg_energies : Iterable[AverageEnergy],
+	parents : List[str],
+	num_crossovers : int,
+	min_fragment_diversity : int,
+	max_fragment_size : int = 99999
+	) -> List[RASPPResult]:
 	"""Find libraries with the lowest energy given constraints on fragment diversity."""
 	
 	# Collapse the parents to remove identical sites.  Necessary because RASPP's
@@ -417,13 +428,15 @@ def get_shortest_path(arc_lengths, parents, num_crossovers, l_min, l_max):
 	else:
 		return None
 
-def curve(results, parents, bin_width, max_samples=1e10):
+RASPPCurveResult = Tuple[float, float, List[int]]
+
+def curve(results : List[RASPPResult], parents : List[str], bin_width : float, max_samples : float = 1e10) -> List[RASPPCurveResult]:
 	"""Compute a curve of average energy and average mutation, with the latter binned
 	by bin_width.
 	"""
 	if len(results) < 1:
 		# Nothing to do!
-		return
+		raise ValueError("Cannot compute RASPP curve from empty results.")
 	(e, xovers, lmin, lmax) = results[0]
 	num_crossovers = len(xovers)
 	#print "# No. of RASPP results:", len(results)

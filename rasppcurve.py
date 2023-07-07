@@ -32,8 +32,8 @@ Silberg, J. et al., "SCHEMA-guided protein recombination," Methods in Enzymology
 Endelman, J. et al., "Site-directed protein recombination as a shortest-path problem," Protein Engineering, Design & Selection 17(7):589-594 (2005).
 """
 
-import sys, os, string, math, random, time
-from . import pdb
+import sys, os, time
+from . import contacts as schemacontacts
 from . import schema
 from . import raspp
 
@@ -114,7 +114,7 @@ def confirm_arguments(arg_dict):
 
 def main(args):
         args_dict =  parse_arguments(args)
-        if not confirm_arguments(arg_dict):
+        if not confirm_arguments(args_dict):
                 if args[0].split(os.path.sep)[-1] == "rasppcurve.py":
                         print_usage(args)
                 return
@@ -137,8 +137,7 @@ def main_impl(arg_dict):
         parents = [p for (k,p) in parent_list]
         
         # Get the contacts
-        with open(arg_dict[ARG_CONTACT_FILE], 'r') as res:
-                pdb_contacts = schema.readContactFile(res)
+        pdb_contacts = schemacontacts.read_contacts_file(arg_dict[ARG_CONTACT_FILE])
         
         # Establish connection to output, either file or, if no output file is 
         # specified, to standard output.
@@ -156,6 +155,8 @@ def main_impl(arg_dict):
 
         if ARG_MAX_FRAGMENT_SIZE in arg_dict:
                 max_length = int(arg_dict[ARG_MAX_FRAGMENT_SIZE])
+        else:
+                max_length = 999999
 
         # Get the bin width
         if ARG_BIN_WIDTH in arg_dict:
@@ -167,10 +168,6 @@ def main_impl(arg_dict):
         # Get the number of fragments -- one more than the number of crossovers.
         num_fragments = int(arg_dict[ARG_NUM_CROSSOVERS])+1
         
-        
-        num_parents = len(parents)
-        library_size = num_parents**num_fragments
-
         # Make libraries consistent with RASPP
         (new_parents, identical_sites) = raspp.collapse_parents(parents)
         if len(new_parents[0]) < num_fragments*min_length:
@@ -182,7 +179,7 @@ def main_impl(arg_dict):
 
         contacts = schema.getSCHEMAContacts(pdb_contacts, parents)
         energies = raspp.make_4d_energies(contacts, parents)
-        avg_energies = raspp.calc_average_energies(energies, parents)
+        avg_energies = list(raspp.calc_average_energies(energies, parents))
 
         tstart = time.time()
         res = raspp.RASPP(avg_energies, parents, num_fragments-1, min_length, max_length)
