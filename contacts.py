@@ -218,7 +218,7 @@ class ContactsMatrix(object):
 def make_contacts(contacts : Contacts) -> ContactsMatrix:
     return ContactsMatrix(contacts)
 
-def write_contacts(contacts : Contacts, stream : TextIOBase) -> None:
+def write_contacts(contacts : Contacts, stream : TextIO) -> None:
     json.dump(
         contacts.to_json_dict(),
         stream

@@ -127,6 +127,7 @@ def main_impl(arg_dict):
         # If you don't provide a PDB alignment file, the program will assume that the ID of the PDB structure
         # contained in the HEADER field corresponds to one of the sequence IDs in the MSA.
         parent_pdb_alignment_file = None
+        pdb_key = None
         if ARG_PDB_ALIGNMENT_FILE in arg_dict:
                 if not os.path.isfile(arg_dict[ARG_PDB_ALIGNMENT_FILE]):
                         print("  Can't find PDB/parent alignment file %s" % arg_dict[ARG_PDB_ALIGNMENT_FILE])
@@ -184,7 +185,7 @@ def main_impl(arg_dict):
         
                 # Bail out if there are fewer than 2 sequences.
                 if len(pdb_parent_seq_dict.keys()) < 2:
-                        print("Only found one uniquely named sequence in the PDB/parent alignment, %s.  Aborting..." % pdb_parent_seq_dict.keys()[0])
+                        print("Only found one uniquely named sequence in the PDB/parent alignment, %s.  Aborting..." % list(pdb_parent_seq_dict.keys())[0])
                         return
 
                 # Find the matching key
