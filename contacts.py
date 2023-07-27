@@ -202,9 +202,9 @@ class ContactsMatrix(object):
         size_all = 0
 
         for contact in contacts.contacts:
-            if contact.pdb_i > size_all:
+            if contact.seq_i + 1 > size_all:
                 size_all = contact.seq_i + 1
-            if contact.pdb_j > size_all:
+            if contact.seq_j + 1 > size_all:
                 size_all = contact.seq_j + 1
 
         result : List[List['float | None']] = [[None for _j in range(size_all)] for _i in range(size_all)]
