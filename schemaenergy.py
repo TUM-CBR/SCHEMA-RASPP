@@ -32,8 +32,12 @@ Endelman, J. et al., "Site-directed protein recombination as a shortest-path pro
 
 import sys, os
 from .contacts import ContactsMatrix, read_contacts_file
+from .disruption import Disruption, disruption_from_args
+from . import disruption
+
 from . import schema
 
+ARG_DISRUPTION = disruption.ARG_DISRUPTION
 ARG_PRINT_E = 'E'
 ARG_PRINT_M = 'm'
 ARG_PDB_ALIGNMENT_FILE = 'pdbal'
@@ -118,7 +122,7 @@ def confirm_arguments(arg_dict):
 		res = False
 	return res
 
-def outputEnergies(chimera_blocks, contacts : ContactsMatrix, fragments, parents, output_file, output_string, print_E, print_m):
+def outputEnergies(chimera_blocks, contacts : ContactsMatrix, fragments, parents, output_file, output_string, print_E, print_m, disruption : Disruption):
 	if not schema.checkChimera(chimera_blocks, fragments, parents):
 		error = "# %s is not a valid chimera\n" % chimera_blocks
 		output_file.write(error)
@@ -127,7 +131,7 @@ def outputEnergies(chimera_blocks, contacts : ContactsMatrix, fragments, parents
 	E = None
 	m = None
 	if print_E:
-		E = schema.getChimeraDisruption(chimera_blocks, contacts, fragments, parents)
+		E = schema.getChimeraDisruption(disruption, chimera_blocks, contacts, fragments, parents)
 		output_vars = output_vars + [E]
 	if print_m:
 		m = schema.getChimeraShortestDistance(chimera_blocks, fragments, parents)
@@ -172,6 +176,8 @@ def main_impl(arg_dict):
 	# Get the contacts
 	pdb_contacts = read_contacts_file(arg_dict[ARG_CONTACT_FILE])
 	contacts = schema.getSCHEMAContactsWithCrossovers(pdb_contacts, parents, crossovers)
+
+	disruption = disruption_from_args(arg_dict)
 	
 	if ARG_OUTPUT_FILE in arg_dict:
 		output_file = open(arg_dict[ARG_OUTPUT_FILE], 'w')
@@ -194,16 +200,16 @@ def main_impl(arg_dict):
 		if type(chimeras) is list:
 			# It's a list of chimeras
 			for chimera_blocks in chimeras:
-				outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m)
+				outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m, disruption)
 		elif os.path.isfile(chimeras):
 			# It's a file of chimeras
 			for line in open(chimeras,'r').readlines():
 				chimera_blocks = line.strip()
-				outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m)
+				outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m, disruption)
 		else:
 			# It's a single chimera sequence
 			chimera_blocks = chimeras
-			outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m)
+			outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m, disruption)
 	else:
 		# Enumerates all possible chimeras and their disruption and mutation values.
 		p = len(parents)
@@ -215,7 +221,7 @@ def main_impl(arg_dict):
 			# (e.g., 0 -> '11111111', 1 -> '11111112', 2 -> '11111113'...)
 			n2c = schema.base(i,p)
 			chimera_blocks = ''.join(['1']*(n-len(n2c))+['%d'%(int(x)+1,) for x in n2c])
-			(E, m) = outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m)
+			(E, m) = outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m, disruption)
 			if (print_E):
 				Es.append(E)
 			if (print_m):

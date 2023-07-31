@@ -3,6 +3,7 @@
 import math, time
 from typing import Iterable, List, NamedTuple, Tuple
 
+from .disruption import Disruption
 from .contacts import ContactsMatrix
 from . import schema
 
@@ -124,20 +125,33 @@ class Energy(NamedTuple):
 
 Energies = List[Energy]
 
-def make_4d_energies(contacts : ContactsMatrix, parents : List[str]) -> Energies:
+def make_4d_energies(
+	contacts : ContactsMatrix,
+	disruption: Disruption,
+	parents : List[str]
+) -> Energies:
+
 	return [
-		Energy(seq_i = i, seq_j = j, parent_p = p, parent_q= q, energy = contact.energy)
+		Energy(
+			seq_i = i,
+			seq_j = j,
+			parent_p = p,
+			parent_q = q,
+			energy = disruption.calculate_disruption(parents, (parp[i], parq[j]), contact, contacts)
+		)
 		for contact in contacts.iterate_contacts()
 		for (i,j) in [(contact.seq_i, contact.seq_j)]
 		for (p, parp) in enumerate(parents)
 		for (q, parq) in enumerate(parents)
-		if p != q and (parp[i], parq[j]) not in [(r[i], r[j]) for r in parents]
-
+		#if p != q and (parp[i], parq[j]) not in [(r[i], r[j]) for r in parents]
 	]
 
 AverageEnergy = Tuple[int, int, float]
 
-def calc_average_energies(energies : Energies, parents : List[str]) -> Iterable[AverageEnergy]:
+def calc_average_energies(
+	energies : Energies,
+	parents : List[str]
+) -> Iterable[AverageEnergy]:
 	num_residues = len(parents[0])
 	num_parents = len(parents)
 	#energy_dict = dict([(x,1) for x in energies])
@@ -263,11 +277,11 @@ def translate_collapsed_indices(collapsed_crossovers, collapsed_sites):
 				crossovers[i]+= 1
 	return crossovers
 		
-def RASPP_SCHEMA(contacts, parents, num_crossovers, min_fragment_diversity):
+def RASPP_SCHEMA(contacts, parents, num_crossovers, min_fragment_diversity, disruption : Disruption):
 	schema_contacts = schema.getSCHEMAContacts(contacts, parents)
 	(collapsed_parents, identity_list) = collapse_parents(parents)
-	energies = raspp.make_4d_energies(schema_contacts, parents)
-	avg_energies = raspp.calc_average_energies(energies, parents)
+	energies = make_4d_energies(schema_contacts, disruption, parents)
+	avg_energies = calc_average_energies(energies, parents)
 	results = RASPP(avg_energies, parents, num_crossovers, min_fragment_diversity)
 	
 	for i in range(len(results)):

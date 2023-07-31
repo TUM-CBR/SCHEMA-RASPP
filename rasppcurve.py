@@ -33,7 +33,9 @@ Endelman, J. et al., "Site-directed protein recombination as a shortest-path pro
 """
 
 import sys, os, time
+
 from . import contacts as schemacontacts
+from . import disruption
 from . import schema
 from . import raspp
 
@@ -178,8 +180,13 @@ def main_impl(arg_dict):
                 return
 
         contacts = schema.getSCHEMAContacts(pdb_contacts, parents)
-        energies = raspp.make_4d_energies(contacts, parents)
-        avg_energies = list(raspp.calc_average_energies(energies, parents))
+        energies = raspp.make_4d_energies(contacts, disruption.disruption_from_args(arg_dict), parents)
+        avg_energies = list(
+                raspp.calc_average_energies(
+                        energies,
+                        parents
+                )
+        )
 
         tstart = time.time()
         res = raspp.RASPP(avg_energies, parents, num_fragments-1, min_length, max_length)

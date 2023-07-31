@@ -117,6 +117,9 @@ class Contacts(NamedTuple):
 
     K_CONTACTS = 'contacts'
     contacts : List[Contact]
+
+    K_MAIN_PARENT_SEQ = 'main_parent'
+    main_parent_seq : str
     
     def mask(self, targets_it : Iterable[Tuple[int, int]]) -> 'Contacts':
         targets = set(targets_it)
@@ -128,7 +131,8 @@ class Contacts(NamedTuple):
 
         return Contacts(
             interactions=self.interactions,
-            contacts=new_contacts
+            contacts=new_contacts,
+            main_parent_seq = self.main_parent_seq
         )
     
     @staticmethod
@@ -142,9 +146,12 @@ class Contacts(NamedTuple):
             for contact in json_dict[Contacts.K_CONTACTS]
         ]
 
+        main_parent_seq = json_dict[Contacts.K_MAIN_PARENT_SEQ]
+
         return Contacts(
             interactions = interactions,
-            contacts = contacts
+            contacts = contacts,
+            main_parent_seq = main_parent_seq
         )
 
     def sort(self) -> 'Contacts':
@@ -155,14 +162,16 @@ class Contacts(NamedTuple):
             )
         return Contacts(
             interactions = self.interactions,
-            contacts = contacts
+            contacts = contacts,
+            main_parent_seq = self.main_parent_seq
         )
 
     
     def to_json_dict(self) -> dict:
         return {
             Contacts.K_CONTACTS: [contact.to_json_dict() for contact in self.contacts],
-            Contacts.K_INTERACTIONS: [interaction.to_json_dict() for interaction in self.interactions]
+            Contacts.K_INTERACTIONS: [interaction.to_json_dict() for interaction in self.interactions],
+            Contacts.K_MAIN_PARENT_SEQ: self.main_parent_seq
         }
 
 class ContactsMatrix(object):
@@ -246,9 +255,11 @@ class ContactEnergy(object, metaclass=ABCMeta):
 
     def get_pdb_contacts(self, residues : List[Residue]) -> Contacts:
         contact_list = self.enumerate_contacts(residues)
+        main_parent_seq = "".join(r.residue for r in residues)
         return Contacts(
             interactions=self.interactions,
-            contacts=contact_list
+            contacts=contact_list,
+            main_parent_seq = main_parent_seq
         )
 
 class ContactPairwiseEnergy(ContactEnergy, metaclass=ABCMeta):

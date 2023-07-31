@@ -34,7 +34,9 @@ Endelman, J. et al., "Site-directed protein recombination as a shortest-path pro
 
 import string, random
 from typing import List, Tuple
+
 from .contacts import ContactsMatrix
+from .disruption import Disruption
 from . import pdb
 
 DIGITS_LETTERS = string.digits + string.ascii_letters
@@ -196,7 +198,13 @@ def indexToFragment(index, fragments):
 
         raise ValueError("The index '%i' is not in fragments '%s'" % (index, str(fragments)))
 
-def getChimeraDisruption(chimera_blocks, contacts : ContactsMatrix, fragments, parents) -> float:
+def getChimeraDisruption(
+        disruption : Disruption,
+        chimera_blocks,
+        contacts : ContactsMatrix,
+        fragments,
+        parents
+) -> float:
         """Takes a chimera block pattern, such as '11213312', and computes the SCHEMA
         disruption, the number of contacts broken by recombination."""
         parent_indices = [int(c)-1 for c in chimera_blocks]
@@ -211,9 +219,14 @@ def getChimeraDisruption(chimera_blocks, contacts : ContactsMatrix, fragments, p
                         continue
                 pair = (parents[parent_indices[frag_i]][i],     parents[parent_indices[frag_j]][j])
                 # If pair doesn't exist in any parent, it's counted as disruptive
-                if pair not in [(p[i], p[j]) for p in parents]:
-                        #print chimera_blocks, i+1, j+1
-                        num_disruptions += contact.energy
+
+                num_disruptions += disruption.calculate_disruption(
+                        parents,
+                        pair,
+                        contact,
+                        contacts
+                )
+
         return num_disruptions
 
 def getChimeraSequence(chimera_blocks, fragments, parents):
@@ -344,7 +357,7 @@ def averageMutationSampled(fragments, parents, num_samples):
                 num_chimeras += 1
         return avg_m/num_chimeras
         
-def averageEnergy(contacts, fragments, parents):
+def averageEnergy(contacts, fragments, parents, disruption : Disruption):
         avg_E = 0.0
         num_chimeras = 0
         p = len(parents)
@@ -354,7 +367,7 @@ def averageEnergy(contacts, fragments, parents):
                 # (e.g., 0 -> '11111111', 1 -> '11111112', 2 -> '11111113'...)
                 n2c = base(i,p)
                 chimera_blocks = ''.join(['1']*(n-len(n2c))+['%d'%(int(x)+1,) for x in n2c])
-                E = getChimeraDisruption(chimera_blocks, contacts, fragments, parents)
+                E = getChimeraDisruption(disruption, chimera_blocks, contacts, fragments, parents)
                 avg_E += E
                 num_chimeras += 1
         return avg_E/num_chimeras
