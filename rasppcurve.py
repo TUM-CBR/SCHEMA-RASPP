@@ -36,8 +36,8 @@ import sys, os, time
 
 from . import contacts as schemacontacts
 from . import disruption
-from . import schema
 from . import raspp
+from . import schema
 
 ARG_MULTIPLE_SEQUENCE_ALIGNMENT_FILE = 'msa'
 ARG_CONTACT_FILE = 'con'
@@ -51,6 +51,7 @@ ARG_RANDOM_SEED = 'seed'
 ARG_COMPARE = 'compare'  # Unused
 ARG_HELP = 'help'
 ARG_MAX_FRAGMENT_SIZE = 'max'
+ARG_DISRUPTION = disruption.ARG_DISRUPTION
 
 def parse_arguments(args):
         # Turn linear arguments into a dictionary of (option, [values,...]) pairs
