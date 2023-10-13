@@ -21,7 +21,7 @@ def namedtuple_to_json(obj : Any):
 def json_to_namedtuple(data, namedtuple_class):
     if isinstance(data, dict):
         converted_data = {
-            key: json_to_namedtuple(value, namedtuple_class._field_types[key])
+            key: json_to_namedtuple(value, namedtuple_class.__annotations__[key])
             for key, value in data.items()
         }
         return namedtuple_class(**converted_data)
