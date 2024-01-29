@@ -137,7 +137,14 @@ def make_4d_energies(
 			seq_j = j,
 			parent_p = p,
 			parent_q = q,
-			energy = disruption.calculate_disruption(parents, (parp[i], parq[j]), contact, contacts)
+			energy = disruption.calculate_disruption(
+				parents,
+				(parp[i], parq[j]),
+				parp,
+				parq,
+				contact,
+				contacts
+			)
 		)
 		for contact in contacts.iterate_contacts()
 		for (i,j) in [(contact.seq_i, contact.seq_j)]

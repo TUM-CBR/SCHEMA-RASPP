@@ -217,24 +217,16 @@ def getChimeraDisruption(
                 if parent_indices[frag_i] == parent_indices[frag_j]:
                         # No disruption possible if both fragments come from the same parent.
                         continue
-                pair = (parents[parent_indices[frag_i]][i],     parents[parent_indices[frag_j]][j])
+                frag_a = parents[parent_indices[frag_i]]
+                frag_b = parents[parent_indices[frag_j]]
+                pair = (frag_a[i], frag_b[j])
 
-                subs_1 = (
-                        parents[parent_indices[frag_i]][i],
-                        parents[parent_indices[frag_j]][i]
-                )
-
-                subs_2 = (
-                        parents[parent_indices[frag_i]][j],
-                        parents[parent_indices[frag_j]][j]
-                )
                 # If pair doesn't exist in any parent, it's counted as disruptive
-
                 num_disruptions += disruption.calculate_disruption(
                         parents,
                         pair,
-                        subs_1,
-                        subs_2,
+                        frag_a,
+                        frag_b,
                         contact,
                         contacts
                 )
