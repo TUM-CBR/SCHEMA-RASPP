@@ -77,6 +77,10 @@ class Contact(NamedTuple):
     interactions : List[Interaction]
 
     @property
+    def key(self):
+        return (self.seq_i, self.seq_j)
+
+    @property
     def energy(self) -> float:
         return sum(i.strength for i in self.interactions)
 
@@ -97,6 +101,22 @@ class Contact(NamedTuple):
         json_dict = json_dict.copy()
         json_dict[Contact.K_INTERACTIONS] = [Interaction.from_json_dict(i) for i in json_dict[Contact.K_INTERACTIONS]]
         return Contact(**json_dict)
+    
+    def add(self, other: 'Contact') -> 'Contact':
+
+        seq_i = self.seq_i
+        seq_j = self.seq_j
+        pdb_i = self.pdb_i
+        pdb_j = self.pdb_j
+        assert seq_i == other.seq_i and seq_j == other.seq_j and pdb_i == other.pdb_i and pdb_j == other.pdb_j, "Cannot combine contacts at different positions"
+
+        return Contact(
+            seq_i=seq_i,
+            seq_j=seq_j,
+            pdb_i=pdb_i,
+            pdb_j=pdb_j,
+            interactions = self.interactions + other.interactions
+        )
 
     def sort(self) -> 'Contact':
         if self.seq_i > self.seq_j:
@@ -486,14 +506,30 @@ class CompositeEnergy(ContactEnergy):
     @property
     def interactions(self) -> List[InteractionMeta]:
         return self.__interactions
+    
+    @staticmethod
+    def __update_contact__(
+        contacts: Dict[Tuple[int, int], Contact],
+        new_contact: Contact
+    ):
+        
+        key = new_contact.key
+        current = contacts.get(key)
+
+        if current is None:
+            contacts[key] = new_contact
+        else:
+            contacts[key] = current.add(new_contact)
 
     def enumerate_contacts(self, residues: List[Residue]) -> List[Contact]:
-        return [
-            # imagine if this could run in parallel
-            contact
-            for interaction in self.__energies
-            for contact in interaction.enumerate_contacts(residues)
-        ]
+
+        contacts_dict : Dict[Tuple[int, int], Contact] = dict()
+
+        for interaction in self.__energies:
+            for contact in interaction.enumerate_contacts(residues):
+                self.__update_contact__(contacts_dict, contact)
+
+        return list(contacts_dict.values())
 
 van_der_waals = TwoChargeInteractionTemplate(
     name = "Van der Waals",

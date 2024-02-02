@@ -231,7 +231,7 @@ def getChimeraDisruption(
                         contacts
                 )
 
-        return num_disruptions
+        return max(num_disruptions, 0)
 
 def getChimeraSequence(chimera_blocks, fragments, parents):
         """Converts a chimera block pattern, such as '11213312', into a protein sequence
