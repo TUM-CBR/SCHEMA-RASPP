@@ -1,10 +1,14 @@
 from abc import ABC, abstractmethod
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from .contacts import Contact, ContactsMatrix
 
+BlossumMatrix = Dict[Tuple[str, str], float]
+
 ARG_DISRUPTION = 'disruption'
+
+ARG_BLOSUM = 'blossum'
 
 class Disruption(ABC):
 
@@ -60,9 +64,50 @@ class ClassicDisruption(BrokenParentDisruption):
     ) -> float:
         return contact.energy
 
+def blossum_disrruption(matrix: BlossumMatrix, chimera: str, parent: str) -> float:
+
+    def score(ri: str, rj: str) -> float:
+        value = matrix.get((ri, rj))
+        if value is None:
+            return 0
+        else:
+            return value
+
+    return sum(
+        score(ri, rj) for (ri, rj) in zip(parent, chimera)
+    )
+
+def assemble_chimera(chimera_blocks: str, parents: List[str], fragments: List[Tuple[int, int]]) -> str:
+    parent_indices = [int(c)-1 for c in chimera_blocks]
+
+    def get_sequence(i_fragment: int, drop: int, take: int) -> str:
+        drop = 1 + drop if drop > 0 else drop
+        take = take + 1
+        return parents[i_fragment][drop:take]
+
+    return "".join(
+        get_sequence(i_fragment, drop, take)
+        for (i_position, i_fragment) in enumerate(parent_indices)
+        for drop,take in [fragments[i_position]]
+    )
+
+def blossum_disruption_all(matrix: BlossumMatrix, chimera: str, parents: List[str], fragments: List[Tuple[int, int]]) -> float:
+
+    # We return the smallest of performing BLOSSUM scoring on substitutions relative
+    # to all the parents
+    chimera = assemble_chimera(chimera, parents, fragments)
+    return max(
+        blossum_disrruption(
+            matrix,
+            chimera,
+            parent
+        )
+        for parent in parents
+    )
+
 class BlosumDisruption(BrokenParentDisruption):
 
-    def __init__(self, matrix : Dict[Tuple[str, str], float]):
+    def __init__(self, matrix : BlossumMatrix):
         self.__matrix = matrix
         self.__ceiling = max(matrix.values())
         floor = min(matrix.values())
@@ -112,18 +157,31 @@ class BlosumDisruption(BrokenParentDisruption):
 
 def disruption_from_args(arg_dict : Dict[Any, Any]) -> Disruption:
 
-    location = arg_dict.get(ARG_DISRUPTION)
+    return ClassicDisruption()
+
+class BlossumMatrixes(NamedTuple):
+    names : List[str]
+    matrixes : List[BlossumMatrix]
+
+def blossum_from_args(arg_dict: Dict[Any, Any]) -> Optional[BlossumMatrixes]:
+    location = arg_dict.get(ARG_BLOSUM)
 
     if location is None:
-        return ClassicDisruption()
+        return None
 
     with open(location, 'r') as mappings_json:
-        mappings = json.load(mappings_json)
+        matrixes = json.load(mappings_json)
 
-    matrix = {}
-    for res_i, scores in mappings.items():
-        for res_j, score in scores.items():
+    result = BlossumMatrixes(names = [], matrixes = [])
 
-            matrix[(res_i, res_j)] = score
+    for name, mappings in matrixes.items():
+        matrix = {}
+        for res_i, scores in mappings.items():
+            for res_j, score in scores.items():
 
-    return BlosumDisruption(matrix)
+                matrix[(res_i, res_j)] = score
+
+        result.names.append(name)
+        result.matrixes.append(matrix)
+
+    return result

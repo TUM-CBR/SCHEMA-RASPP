@@ -31,13 +31,14 @@ Endelman, J. et al., "Site-directed protein recombination as a shortest-path pro
 """
 
 import sys, os
+from typing import List, Optional
 from .contacts import ContactsMatrix, read_contacts_file
-from .disruption import Disruption, disruption_from_args
+from .disruption import BlossumMatrix, Disruption, blossum_from_args, disruption_from_args
 from . import disruption
 
 from . import schema
 
-ARG_DISRUPTION = disruption.ARG_DISRUPTION
+ARG_BLOSUM = disruption.ARG_BLOSUM
 ARG_PRINT_E = 'E'
 ARG_PRINT_M = 'm'
 ARG_PDB_ALIGNMENT_FILE = 'pdbal'
@@ -122,7 +123,7 @@ def confirm_arguments(arg_dict):
 		res = False
 	return res
 
-def outputEnergies(chimera_blocks, contacts : ContactsMatrix, fragments, parents, output_file, output_string, print_E, print_m, disruption : Disruption):
+def outputEnergies(chimera_blocks, contacts : ContactsMatrix, fragments, parents, output_file, output_string, print_E, print_m, blossum_mx : Optional[List[BlossumMatrix]], disruption : Disruption):
 	if not schema.checkChimera(chimera_blocks, fragments, parents):
 		error = "# %s is not a valid chimera\n" % chimera_blocks
 		output_file.write(error)
@@ -136,6 +137,9 @@ def outputEnergies(chimera_blocks, contacts : ContactsMatrix, fragments, parents
 	if print_m:
 		m = schema.getChimeraShortestDistance(chimera_blocks, fragments, parents)
 		output_vars = output_vars + [m]
+	if blossum_mx is not None:
+		output_vars = output_vars + schema.get_blossum_disruption(blossum_mx, chimera_blocks, fragments, parents)
+
 	#print output_vars
 	output_file.write(output_string % tuple(output_vars))
 	return (E,m)
@@ -178,6 +182,8 @@ def main_impl(arg_dict):
 	contacts = schema.getSCHEMAContactsWithCrossovers(pdb_contacts, parents, crossovers)
 
 	disruption = disruption_from_args(arg_dict)
+
+	blossum_matrixes = blossum_from_args(arg_dict)
 	
 	if ARG_OUTPUT_FILE in arg_dict:
 		output_file = open(arg_dict[ARG_OUTPUT_FILE], 'w')
@@ -191,6 +197,14 @@ def main_impl(arg_dict):
 	if print_m:
 		output_string += '\t%d'
 		output_file.write('\tm')
+	if blossum_matrixes is not None:
+		output_string += '\t%d' * len(blossum_matrixes.matrixes)
+		output_file.write('\t')
+		output_file.write('\t'.join(blossum_matrixes.names))
+		blossum_mx = blossum_matrixes.matrixes
+	else:
+		blossum_mx = None
+		
 	output_string += '\n'
 	output_file.write('\n')
 	
@@ -200,16 +214,16 @@ def main_impl(arg_dict):
 		if type(chimeras) is list:
 			# It's a list of chimeras
 			for chimera_blocks in chimeras:
-				outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m, disruption)
+				outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m, blossum_mx, disruption)
 		elif os.path.isfile(chimeras):
 			# It's a file of chimeras
 			for line in open(chimeras,'r').readlines():
 				chimera_blocks = line.strip()
-				outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m, disruption)
+				outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m, blossum_mx, disruption)
 		else:
 			# It's a single chimera sequence
 			chimera_blocks = chimeras
-			outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m, disruption)
+			outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m, blossum_mx, disruption)
 	else:
 		# Enumerates all possible chimeras and their disruption and mutation values.
 		p = len(parents)
@@ -221,7 +235,7 @@ def main_impl(arg_dict):
 			# (e.g., 0 -> '11111111', 1 -> '11111112', 2 -> '11111113'...)
 			n2c = schema.base(i,p)
 			chimera_blocks = ''.join(['1']*(n-len(n2c))+['%d'%(int(x)+1,) for x in n2c])
-			(E, m) = outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m, disruption)
+			(E, m) = outputEnergies(chimera_blocks, contacts, fragments, parents, output_file, output_string, print_E, print_m, blossum_mx, disruption)
 			if (print_E):
 				Es.append(E)
 			if (print_m):

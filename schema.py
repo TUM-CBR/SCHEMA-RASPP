@@ -36,7 +36,7 @@ import string, random
 from typing import List, Tuple
 
 from .contacts import ContactsMatrix
-from .disruption import Disruption
+from .disruption import BlossumMatrix, blossum_disruption_all, Disruption
 from . import pdb
 
 DIGITS_LETTERS = string.digits + string.ascii_letters
@@ -197,6 +197,17 @@ def indexToFragment(index, fragments):
                         return frag_index
 
         raise ValueError("The index '%i' is not in fragments '%s'" % (index, str(fragments)))
+
+def get_blossum_disruption(
+        matrixes: List[BlossumMatrix],
+        chimera_blocks: str,
+        fragments: List[List[str]],
+        parents: List[str]
+) -> List[float]:
+        return [
+                blossum_disruption_all(matrix, chimera_blocks, parents, fragments)
+                for matrix in matrixes
+        ]
 
 def getChimeraDisruption(
         disruption : Disruption,
