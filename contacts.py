@@ -4,8 +4,6 @@ from io import TextIOBase
 import json
 from typing import Any, cast, Dict, Iterable, List, NamedTuple, Optional, TextIO, Tuple, Type
 
-from kiwisolver import strength
-
 from .pdb import Residue
 
 def namedtuple_to_json(obj : Any):
